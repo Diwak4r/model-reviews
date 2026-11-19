@@ -1,17 +1,13 @@
-# Scorecard: Gemini 4 Neon vs Claude Fable 5.2
+# Scoring: Gemini 4 Neon vs Claude Fable 5.2
 
-Score each test 0-10. Then record the facts.
+Each of the 5 tests is scored 0-10 for each model, for a total out of 50.
 
-| Test | Neon score | Fable score | Neon facts (time / cost / lines / retries) | Fable facts |
-|---|---|---|---|---|
-| 1. Wow output | | | | |
-| 2. Showreel | | | | |
-| 3. 3D world | | | | |
-| 4. SVG | | | | |
-| 5. Technical | | | | |
-| **Total /50** | | | | |
+Alongside every score we record:
+- generation time
+- cost of the run
+- line count (code tests)
+- errors on first run
 
-**Cost per task (average):** Neon $ · Fable $
-**Value score (total ÷ cost):** Neon · Fable
+**Value score** = total score ÷ total cost of all 5 runs.
 
-Twist to highlight in post 7: _fill (e.g. "Neon scored 41/50 for $0.38. Fable scored 44/50 for $1.20.")_
+Scores are published here once testing is finished.
