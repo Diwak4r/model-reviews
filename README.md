@@ -6,7 +6,7 @@ Every review runs the **same 5 tests, the same prompts, zero retries**, so model
 
 | Model | Lab | Released | Rival tested | Verdict | Folder |
 |---|---|---|---|---|---|
-| Gemini 4 Neon | Google DeepMind | 2026-11-18 | Claude Fable 5.2 | _pending_ | [gemini-4-neon](./gemini-4-neon) |
+| Gemini 4 Neon | Google DeepMind | 2026-11-18 | Claude Fable 5.2 | Testing in progress | [gemini-4-neon](./gemini-4-neon) |
 
 ## The 5 tests
 1. **Wow output**: the most impressive single thing the model can make from one prompt.
@@ -22,7 +22,5 @@ Plus a **scorecard** against the closest rival, and a **verdict**.
 - Same prompt goes to the rival model.
 - Cost and time are recorded for each run.
 - Outputs are committed as-is, with no hand edits.
-
-Use the [template](./TEMPLATE.md) to start a new review.
 
 Follow on X: [@Norwakar](https://x.com/Norwakar) · Site: [diwakaryadav.com.np](https://www.diwakaryadav.com.np/)
