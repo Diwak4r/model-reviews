@@ -7,7 +7,7 @@
 - **Claimed:** #3 on the Artificial Analysis Intelligence Index (61 at xhigh), #2 on the Vals Index
 - **Rival:** Claude Fable 5.2 ($8 / $40 per 1M tokens, AA Index 65, #1)
 
-**Status:** testing in progress. Results, outputs and the verdict will be published here.
+**Status:** creative tests 1 to 4 are done (raw outputs in [outputs/](./outputs)), all run in Google AI Studio on Neon High. Test 5 and the head-to-head with Fable 5.2 were not run in this round.
 
 ## Files
 - [prompts.md](./prompts.md): the exact prompts, sent to both models

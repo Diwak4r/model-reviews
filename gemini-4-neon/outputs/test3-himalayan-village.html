@@ -1,0 +1,2292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Himalayan Village</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b101b;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      color: #f4efe6;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* HUD */
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-panel {
+      position: absolute;
+      background: rgba(14, 18, 28, 0.52);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 240, 214, 0.16);
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    }
+    #stats {
+      top: 16px;
+      left: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+    .stat-item { display: flex; flex-direction: column; gap: 2px; }
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(244, 239, 230, 0.62);
+    }
+    .stat-value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: #fff8eb;
+    }
+    #fps-val { color: #8ef0a8; }
+
+    #controls-hint {
+      top: 16px;
+      right: 16px;
+      font-size: 12px;
+      line-height: 1.65;
+      color: rgba(244, 239, 230, 0.85);
+    }
+    #controls-hint kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      margin-right: 4px;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 600;
+      color: #ffe2a8;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 226, 168, 0.25);
+      border-radius: 4px;
+    }
+
+    /* Crosshair & Interaction Prompt */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      margin: -4px 0 0 -4px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 250, 240, 0.8);
+      background: rgba(255, 250, 240, 0.25);
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+      transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+    }
+    #crosshair.active {
+      transform: scale(2.1);
+      border-color: #ffd166;
+      background: rgba(255, 209, 102, 0.22);
+    }
+    #prompt {
+      position: absolute;
+      top: calc(50% + 22px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 13px;
+      border-radius: 999px;
+      background: rgba(18, 20, 28, 0.72);
+      border: 1px solid rgba(255, 209, 102, 0.45);
+      color: #ffe49e;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      white-space: nowrap;
+    }
+    #prompt.visible { opacity: 1; }
+
+    #toast {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(16, 20, 30, 0.72);
+      border: 1px solid rgba(255, 232, 185, 0.28);
+      color: #ffebc2;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #toast.visible { opacity: 1; }
+
+    /* Start / Pause Overlay */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(16, 22, 36, 0.48), rgba(8, 11, 18, 0.82));
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      transition: opacity 0.3s ease;
+    }
+    #overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .card {
+      max-width: 460px;
+      width: 90%;
+      padding: 32px 30px;
+      border-radius: 16px;
+      background: rgba(18, 22, 33, 0.82);
+      border: 1px solid rgba(255, 222, 165, 0.24);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      text-align: center;
+    }
+    .flag-bar {
+      display: flex;
+      height: 4px;
+      border-radius: 99px;
+      overflow: hidden;
+      margin: 0 auto 18px;
+      width: 140px;
+    }
+    .flag-bar span { flex: 1; }
+    .card h1 {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fff6e5;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(244, 239, 230, 0.78);
+      margin-bottom: 22px;
+    }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 14px;
+      text-align: left;
+      font-size: 12.5px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      color: rgba(244, 239, 230, 0.88);
+    }
+    .controls-grid b { color: #ffd166; font-weight: 600; }
+    #start-btn {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      padding: 13px 32px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #1c1408;
+      background: linear-gradient(135deg, #ffd97d, #e79e3b);
+      box-shadow: 0 10px 26px rgba(231, 158, 59, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    #start-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(231, 158, 59, 0.5);
+    }
+    #start-btn:active { transform: translateY(1px); }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div id="stats" class="hud-panel">
+      <div class="stat-item">
+        <span class="stat-label">FPS</span>
+        <span id="fps-val" class="stat-value">60</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Time</span>
+        <span id="time-val" class="stat-value">07:15 AM</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Altitude</span>
+        <span id="alt-val" class="stat-value">3,420 m</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Wheels Spun</span>
+        <span id="spin-val" class="stat-value">0</span>
+      </div>
+    </div>
+
+    <div id="controls-hint" class="hud-panel">
+      <div><kbd>WASD</kbd> Move &nbsp; <kbd>Shift</kbd> Sprint &nbsp; <kbd>Space</kbd> Jump</div>
+      <div><kbd>Click</kbd> Spin Prayer Wheel &nbsp; <kbd>T</kbd> Time Speed (<span id="speed-val">1x</span>)</div>
+      <div><kbd>N</kbd> Skip Phase &nbsp; <kbd>M</kbd> Audio (<span id="audio-val">On</span>) &nbsp; <kbd>ESC</kbd> Pause</div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="prompt">Click to spin prayer wheel</div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="overlay">
+    <div class="card">
+      <div class="flag-bar">
+        <span style="background:#2f6fd6"></span>
+        <span style="background:#f5f2eb"></span>
+        <span style="background:#d93d32"></span>
+        <span style="background:#2d9653"></span>
+        <span style="background:#e8b630"></span>
+      </div>
+      <h1>Himalayan Village</h1>
+      <p>
+        Explore a procedural high-altitude valley with terraced fields, a flowing glacier river,
+        stone houses with smoking chimneys, interactive prayer wheels, and a live day/night cycle.
+      </p>
+      <div class="controls-grid">
+        <div><b>WASD / Arrows</b> Move</div>
+        <div><b>Mouse</b> Look around</div>
+        <div><b>Shift</b> Sprint</div>
+        <div><b>Space</b> Jump</div>
+        <div><b>Left Click</b> Spin prayer wheel</div>
+        <div><b>T / N</b> Time speed / skip</div>
+      </div>
+      <button id="start-btn">Enter Village</button>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // =========================================================================
+    // 1. DETERMINISTIC NOISE & MATH UTILITIES
+    // =========================================================================
+    function hash2(x, y) {
+      let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+
+    function valueNoise(x, y) {
+      const ix = Math.floor(x);
+      const iy = Math.floor(y);
+      const fx = x - ix;
+      const fy = y - iy;
+      const ux = fx * fx * (3 - 2 * fx);
+      const uy = fy * fy * (3 - 2 * fy);
+      const a = hash2(ix, iy);
+      const b = hash2(ix + 1, iy);
+      const c = hash2(ix, iy + 1);
+      const d = hash2(ix + 1, iy + 1);
+      return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+    }
+
+    function fbm(x, y, octaves = 5) {
+      let val = 0, amp = 0.5, freq = 1.0, maxAmp = 0;
+      for (let i = 0; i < octaves; i++) {
+        val += amp * valueNoise(x * freq, y * freq);
+        maxAmp += amp;
+        freq *= 2.04;
+        amp *= 0.5;
+      }
+      return val / maxAmp;
+    }
+
+    function ridgedFbm(x, y, octaves = 5) {
+      let val = 0, amp = 0.5, freq = 1.0, maxAmp = 0;
+      for (let i = 0; i < octaves; i++) {
+        const n = valueNoise(x * freq, y * freq);
+        const ridge = 1.0 - Math.abs(n * 2.0 - 1.0);
+        val += amp * ridge * ridge;
+        maxAmp += amp;
+        freq *= 2.07;
+        amp *= 0.5;
+      }
+      return val / maxAmp;
+    }
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(e0, e1, x) {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    // Seeded RNG for reproducible village details
+    let rngSeed = 133791;
+    function rand() {
+      rngSeed = (rngSeed * 1664525 + 1013904223) >>> 0;
+      return rngSeed / 4294967296;
+    }
+
+    // =========================================================================
+    // 2. VALLEY LAYOUT, RIVER, TERRACES & HEIGHT FIELD
+    // =========================================================================
+    const WORLD_SIZE = 320;
+    const WORLD_HALF = WORLD_SIZE * 0.5;
+    const WATER_LEVEL = 1.65;
+    const TERRACE_STEP = 1.45;
+
+    function riverCenterX(z) {
+      return Math.sin(z * 0.024) * 14.5 + Math.sin(z * 0.011) * 6.5;
+    }
+
+    // Curated village structures (flattened pads so buildings sit solidly on slopes)
+    const HOUSE_DEFS = [
+      { x: -24, z: 7,   rot:  0.42, w: 6.4, d: 5.0, h: 4.3, twoStory: true  },
+      { x: -33, z: -7,  rot:  0.22, w: 5.8, d: 4.8, h: 3.7, twoStory: false },
+      { x: -21, z: -17, rot:  0.65, w: 5.6, d: 4.6, h: 3.6, twoStory: false },
+      { x: -36, z: 17,  rot: -0.35, w: 6.2, d: 5.0, h: 4.2, twoStory: true  },
+      { x: -20, z: 24,  rot: -0.55, w: 5.4, d: 4.5, h: 3.5, twoStory: false },
+      { x:  22, z: -6,  rot: -2.65, w: 6.6, d: 5.2, h: 4.5, twoStory: true  },
+      { x:  31, z: 10,  rot: -2.92, w: 5.8, d: 4.8, h: 3.7, twoStory: false },
+      { x:  23, z: 23,  rot:  2.55, w: 5.5, d: 4.6, h: 3.6, twoStory: false },
+      { x:  29, z: -22, rot: -2.35, w: 6.0, d: 4.8, h: 3.9, twoStory: false }
+    ];
+
+    const SHRINE_PADS = [
+      { x: -13.5, z: 5.0,   r: 5.2 }, // Main prayer wheel pavilion
+      { x:  13.5, z: -3.5,  r: 4.4 }, // East bridge prayer wheels
+      { x: -27.5, z: -25.0, r: 6.8 }  // Stupa & grand prayer wheel sanctuary
+    ];
+
+    function terraceTransform(h) {
+      const s = h / TERRACE_STEP;
+      const idx = Math.floor(s);
+      const frac = s - idx;
+      let t;
+      if (frac < 0.72) {
+        t = 0.07 * (frac / 0.72);
+      } else {
+        t = 0.07 + 0.93 * smoothstep(0.72, 1.0, frac);
+      }
+      return { height: (idx + t) * TERRACE_STEP, riser: smoothstep(0.68, 0.95, frac), stepIdx: idx };
+    }
+
+    function getBaseHeightAndMeta(x, z) {
+      const rx = riverCenterX(z);
+      const dRiver = Math.abs(x - rx);
+      const distOrigin = Math.hypot(x, z);
+
+      // River channel profile
+      const riverCarve = 1.0 - smoothstep(4.2, 10.5, dRiver);
+
+      // Valley floor gentle rise away from river
+      const valleySlope = smoothstep(8.0, 52.0, dRiver) * 14.5;
+
+      // Dramatic surrounding Himalayan peaks
+      const mountainMaskX = smoothstep(38.0, 128.0, dRiver);
+      const mountainMaskRim = smoothstep(62.0, 148.0, distOrigin);
+      const mountainMask = Math.max(mountainMaskX, mountainMaskRim * 0.95);
+
+      const ridge = ridgedFbm(x * 0.015 + 12.3, z * 0.015 - 7.1, 5);
+      const macro = fbm(x * 0.008 - 3.4, z * 0.008 + 5.2, 4);
+      const micro = (fbm(x * 0.055 + 4.0, z * 0.055 - 2.0, 3) - 0.5) * 1.4;
+
+      // Extra tall northern & eastern Himalayan massif for scenic vista
+      const vistaBoost = smoothstep(-10, -125, z) * 28.0 + smoothstep(30, 130, x) * 14.0;
+      const mountainH = mountainMask * (22.0 + ridge * 78.0 + macro * 24.0 + vistaBoost);
+
+      let h = 2.55 + valleySlope + micro * (0.45 + mountainMask * 1.8) + mountainH;
+
+      // Carve riverbed cleanly below water level
+      h = lerp(h, -0.55 + (valueNoise(x * 0.14, z * 0.14) - 0.5) * 0.5, riverCarve);
+
+      // Terraced agricultural fields on fertile valley flanks
+      const tZoneX = smoothstep(11.0, 17.0, dRiver) * (1.0 - smoothstep(41.0, 53.0, dRiver));
+      const tZoneZ = 1.0 - smoothstep(38.0, 54.0, Math.abs(z));
+      const tElevMask = smoothstep(2.8, 4.4, h) * (1.0 - smoothstep(16.5, 22.0, h));
+      const terraceMask = tZoneX * tZoneZ * tElevMask;
+
+      let riser = 0;
+      let stepIdx = 0;
+      if (terraceMask > 0.001) {
+        const tr = terraceTransform(h);
+        h = lerp(h, tr.height, terraceMask * 0.92);
+        riser = tr.riser * terraceMask;
+        stepIdx = tr.stepIdx;
+      }
+
+      return { h, dRiver, terraceMask, riser, stepIdx, mountainMask };
+    }
+
+    // Precompute pad target elevations once from base terrain
+    const FLATTEN_PADS = [];
+    for (const hd of HOUSE_DEFS) {
+      const base = getBaseHeightAndMeta(hd.x, hd.z);
+      FLATTEN_PADS.push({ x: hd.x, z: hd.z, r: Math.max(hd.w, hd.d) * 0.72 + 1.2, y: Math.max(base.h, WATER_LEVEL + 1.4) });
+    }
+    for (const sp of SHRINE_PADS) {
+      const base = getBaseHeightAndMeta(sp.x, sp.z);
+      FLATTEN_PADS.push({ x: sp.x, z: sp.z, r: sp.r, y: Math.max(base.h, WATER_LEVEL + 1.35) });
+    }
+
+    function getTerrainInfo(x, z) {
+      const info = getBaseHeightAndMeta(x, z);
+      let h = info.h;
+      let padBlendTotal = 0;
+
+      for (let i = 0; i < FLATTEN_PADS.length; i++) {
+        const p = FLATTEN_PADS[i];
+        const dx = x - p.x;
+        const dz = z - p.z;
+        const d2 = dx * dx + dz * dz;
+        const outer = p.r + 3.4;
+        if (d2 < outer * outer) {
+          const d = Math.sqrt(d2);
+          const blend = 1.0 - smoothstep(p.r * 0.78, outer, d);
+          h = lerp(h, p.y, blend);
+          padBlendTotal = Math.max(padBlendTotal, blend);
+        }
+      }
+
+      info.h = h;
+      info.padBlend = padBlendTotal;
+      return info;
+    }
+
+    function getTerrainHeight(x, z) {
+      return getTerrainInfo(x, z).h;
+    }
+
+    // Bridge parameters (spanning river at z = 0)
+    const BRIDGE_Z = 0.0;
+    const BRIDGE_X_MIN = -10.5;
+    const BRIDGE_X_MAX = 10.5;
+    const BRIDGE_HALF_WIDTH = 1.75;
+    const BRIDGE_LEFT_Y = getTerrainHeight(BRIDGE_X_MIN, BRIDGE_Z) + 0.06;
+    const BRIDGE_RIGHT_Y = getTerrainHeight(BRIDGE_X_MAX, BRIDGE_Z) + 0.06;
+
+    function getBridgeDeckY(x) {
+      const u = clamp((x - BRIDGE_X_MIN) / (BRIDGE_X_MAX - BRIDGE_X_MIN), 0, 1);
+      const base = lerp(BRIDGE_LEFT_Y, BRIDGE_RIGHT_Y, u);
+      const arch = Math.sin(u * Math.PI) * 1.45;
+      return base + arch;
+    }
+
+    function isOnBridge(x, z) {
+      return x >= BRIDGE_X_MIN - 0.3 && x <= BRIDGE_X_MAX + 0.3 && Math.abs(z - BRIDGE_Z) <= BRIDGE_HALF_WIDTH + 0.25;
+    }
+
+    function getWalkableHeight(x, z) {
+      const th = getTerrainHeight(x, z);
+      if (isOnBridge(x, z)) {
+        return Math.max(th, getBridgeDeckY(x));
+      }
+      return th;
+    }
+
+    // Dirt footpath distance helper for coloring trails
+    const PATH_SEGMENTS = [
+      [[-16, 12], [-13.5, 5]],
+      [[-13.5, 5], [-10.5, 0]],
+      [[10.5, 0], [13.5, -3.5]],
+      [[13.5, -3.5], [22, -6]],
+      [[-13.5, 5], [-24, 7]],
+      [[-13.5, 5], [-21, -17]],
+      [[-21, -17], [-27.5, -25]],
+      [[13.5, -3.5], [23, 10]]
+    ];
+
+    function distToSegment(px, pz, ax, az, bx, bz) {
+      const vx = bx - ax, vz = bz - az;
+      const wx = px - ax, wz = pz - az;
+      const c1 = vx * wx + vz * wz;
+      if (c1 <= 0) return Math.hypot(px - ax, pz - az);
+      const c2 = vx * vx + vz * vz;
+      if (c2 <= c1) return Math.hypot(px - bx, pz - bz);
+      const t = c1 / c2;
+      return Math.hypot(px - (ax + t * vx), pz - (az + t * vz));
+    }
+
+    function getPathMask(x, z) {
+      let minD = 999;
+      for (const s of PATH_SEGMENTS) {
+        const d = distToSegment(x, z, s[0][0], s[0][1], s[1][0], s[1][1]);
+        if (d < minD) minD = d;
+      }
+      const wobble = (valueNoise(x * 0.25, z * 0.25) - 0.5) * 0.55;
+      return 1.0 - smoothstep(1.1, 2.2, minD + wobble);
+    }
+
+    // =========================================================================
+    // 3. PROCEDURAL CANVAS TEXTURES (ZERO EXTERNAL ASSETS)
+    // =========================================================================
+    function createStoneTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#5c554c';
+      ctx.fillRect(0, 0, 256, 256);
+
+      const rows = 10;
+      const rowH = 256 / rows;
+      for (let r = 0; r < rows; r++) {
+        let x = (r % 2) * -22;
+        while (x < 256) {
+          const w = 28 + Math.floor(rand() * 34);
+          const h = rowH - 3;
+          const shade = 110 + Math.floor(rand() * 48);
+          const warm = Math.floor(rand() * 18);
+          ctx.fillStyle = `rgb(${shade + warm}, ${shade + Math.floor(warm * 0.5)}, ${shade - 8})`;
+          ctx.fillRect(x + 2, r * rowH + 2, w - 3, h - 1);
+
+          // Subtle highlight & shadow edge
+          ctx.fillStyle = 'rgba(255,248,235,0.12)';
+          ctx.fillRect(x + 2, r * rowH + 2, w - 3, 3);
+          ctx.fillStyle = 'rgba(20,18,16,0.22)';
+          ctx.fillRect(x + 2, r * rowH + h - 1, w - 3, 2);
+          x += w;
+        }
+      }
+      // Grain speckles
+      for (let i = 0; i < 1600; i++) {
+        ctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
+        ctx.fillRect(rand() * 256, rand() * 256, 2, 2);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createWoodTexture(baseHex = '#5b3c25', grainHex = '#3b2414') {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = baseHex;
+      ctx.fillRect(0, 0, 256, 256);
+
+      for (let i = 0; i < 110; i++) {
+        ctx.strokeStyle = grainHex;
+        ctx.globalAlpha = 0.14 + rand() * 0.25;
+        ctx.lineWidth = 1 + rand() * 2.5;
+        const y = rand() * 256;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(85, y + (rand() - 0.5) * 8, 170, y + (rand() - 0.5) * 8, 256, y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#1f1208';
+      for (let y = 0; y < 256; y += 32) {
+        ctx.fillRect(0, y, 256, 2);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createRoofTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#3c4048';
+      ctx.fillRect(0, 0, 256, 256);
+
+      for (let r = 0; r < 12; r++) {
+        const y = r * (256 / 12);
+        for (let col = 0; col < 8; col++) {
+          const x = col * 32 + (r % 2) * 16 - 16;
+          const v = 54 + Math.floor(rand() * 34);
+          ctx.fillStyle = `rgb(${v}, ${v + 4}, ${v + 10})`;
+          ctx.fillRect(x + 1, y + 1, 30, 19);
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.fillRect(x + 1, y + 18, 30, 3);
+        }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 2);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createPrayerWheelTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+
+      // Rich brushed brass/gold base
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0.0, '#b57b1e');
+      grad.addColorStop(0.18, '#e8b948');
+      grad.addColorStop(0.5, '#f6d16b');
+      grad.addColorStop(0.82, '#d9a134');
+      grad.addColorStop(1.0, '#966114');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 256);
+
+      // Decorative crimson & turquoise enamel bands
+      ctx.fillStyle = '#8f1f1b';
+      ctx.fillRect(0, 20, 512, 22);
+      ctx.fillRect(0, 214, 512, 22);
+
+      ctx.fillStyle = '#1f7a8c';
+      ctx.fillRect(0, 48, 512, 10);
+      ctx.fillRect(0, 198, 512, 10);
+
+      // Embossed lotus/ornamental beads along top & bottom bands
+      ctx.fillStyle = '#ffe182';
+      for (let x = 16; x < 512; x += 32) {
+        ctx.beginPath();
+        ctx.arc(x, 31, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, 225, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Stylized calligraphic mantra motifs around the cylinder
+      ctx.strokeStyle = '#5c3306';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 8; i++) {
+        const cx = 32 + i * 64;
+        const cy = 128;
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, cy - 32);
+        ctx.lineTo(cx + 18, cy - 32);
+        ctx.moveTo(cx, cy - 32);
+        ctx.bezierCurveTo(cx + 22, cy - 10, cx - 22, cy + 16, cx + 14, cy + 32);
+        ctx.moveTo(cx - 14, cy - 8);
+        ctx.arc(cx - 4, cy + 4, 12, -Math.PI * 0.7, Math.PI * 0.9);
+        ctx.stroke();
+
+        // Highlight offset for embossed gold look
+        ctx.strokeStyle = '#fff0b3';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, cy - 35);
+        ctx.lineTo(cx + 18, cy - 35);
+        ctx.stroke();
+        ctx.strokeStyle = '#5c3306';
+        ctx.lineWidth = 6;
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createTerrainDetailTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#d8d8d8';
+      ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 7000; i++) {
+        const v = 185 + Math.floor(rand() * 70);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(rand() * 256, rand() * 256, 1 + rand() * 2, 1 + rand() * 2);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(42, 42);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createSmokeTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+      g.addColorStop(0.0, 'rgba(245, 244, 240, 0.72)');
+      g.addColorStop(0.42, 'rgba(225, 224, 222, 0.42)');
+      g.addColorStop(0.78, 'rgba(205, 206, 210, 0.12)');
+      g.addColorStop(1.0, 'rgba(200, 200, 205, 0.0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    function createWaterTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#2d6e82';
+      ctx.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 180; i++) {
+        const x = rand() * 256;
+        const y = rand() * 256;
+        const len = 18 + rand() * 44;
+        ctx.strokeStyle = rand() > 0.35 ? 'rgba(215, 245, 255, 0.28)' : 'rgba(18, 60, 78, 0.28)';
+        ctx.lineWidth = 1.5 + rand() * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.bezierCurveTo(x + 4, y + len * 0.35, x - 4, y + len * 0.7, x, y + len);
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3, 28);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // =========================================================================
+    // 4. PROCEDURAL WEB AUDIO (WIND, RIVER & PRAYER WHEEL CHIMES)
+    // =========================================================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.master = null;
+        this.riverGain = null;
+        this.windGain = null;
+      }
+
+      init() {
+        if (this.ctx) {
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          return;
+        }
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 0.45;
+        this.master.connect(this.ctx.destination);
+
+        // White noise buffer for mountain breeze & river murmur
+        const bufSize = this.ctx.sampleRate * 3;
+        const noiseBuf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const data = noiseBuf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+
+        // Soft alpine wind
+        const windSrc = this.ctx.createBufferSource();
+        windSrc.buffer = noiseBuf;
+        windSrc.loop = true;
+        const windFilter = this.ctx.createBiquadFilter();
+        windFilter.type = 'bandpass';
+        windFilter.frequency.value = 340;
+        windFilter.Q.value = 1.4;
+        this.windGain = this.ctx.createGain();
+        this.windGain.gain.value = 0.08;
+        windSrc.connect(windFilter).connect(this.windGain).connect(this.master);
+        windSrc.start();
+
+        // Flowing glacial river
+        const riverSrc = this.ctx.createBufferSource();
+        riverSrc.buffer = noiseBuf;
+        riverSrc.loop = true;
+        const riverFilter = this.ctx.createBiquadFilter();
+        riverFilter.type = 'lowpass';
+        riverFilter.frequency.value = 780;
+        this.riverGain = this.ctx.createGain();
+        this.riverGain.gain.value = 0.05;
+        riverSrc.connect(riverFilter).connect(this.riverGain).connect(this.master);
+        riverSrc.start();
+      }
+
+      updateAmbience(distToRiver, timeSec) {
+        if (!this.ctx || !this.riverGain) return;
+        const riverVol = clamp(1.0 - distToRiver / 38.0, 0.015, 1.0) * 0.22;
+        this.riverGain.gain.setTargetAtTime(riverVol, this.ctx.currentTime, 0.2);
+        const windVol = 0.055 + 0.03 * Math.sin(timeSec * 0.35);
+        this.windGain.gain.setTargetAtTime(windVol, this.ctx.currentTime, 0.3);
+      }
+
+      playChime(pitchIndex = 0) {
+        if (!this.ctx || this.muted) return;
+        const now = this.ctx.currentTime;
+        // Pentatonic Tibetan bell frequencies
+        const freqs = [392.0, 440.0, 523.25, 587.33, 659.25, 783.99];
+        const base = freqs[pitchIndex % freqs.length];
+
+        [1.0, 2.756, 5.404].forEach((ratio, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = idx === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(base * ratio, now);
+          const peak = idx === 0 ? 0.24 : (idx === 1 ? 0.08 : 0.03);
+          const dur = idx === 0 ? 2.6 : 1.1;
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(peak, now + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+          osc.connect(gain).connect(this.master);
+          osc.start(now);
+          osc.stop(now + dur + 0.05);
+        });
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.master) {
+          this.master.gain.setTargetAtTime(this.muted ? 0 : 0.45, this.ctx.currentTime, 0.08);
+        }
+        return !this.muted;
+      }
+    }
+    const sound = new SoundEngine();
+
+    // =========================================================================
+    // 5. THREE.JS SCENE, RENDERER & SKY DOME
+    // =========================================================================
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0xbfd4e6, 0.0052);
+
+    const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.15, 550);
+
+    // Custom atmospheric Sky Dome shader
+    const skyUniforms = {
+      topColor:    { value: new THREE.Color(0x2864b8) },
+      midColor:    { value: new THREE.Color(0x7fb4de) },
+      bottomColor: { value: new THREE.Color(0xf2d9b8) },
+      sunDir:      { value: new THREE.Vector3(0.5, 0.4, -0.5).normalize() },
+      sunGlowCol:  { value: new THREE.Color(0xffe1a6) },
+      sunStrength: { value: 1.0 }
+    };
+
+    const skyMat = new THREE.ShaderMaterial({
+      uniforms: skyUniforms,
+      side: THREE.BackSide,
+      depthWrite: false,
+      vertexShader: `
+        varying vec3 vWorldDir;
+        void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vWorldDir = normalize(position);
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 topColor;
+        uniform vec3 midColor;
+        uniform vec3 bottomColor;
+        uniform vec3 sunDir;
+        uniform vec3 sunGlowCol;
+        uniform float sunStrength;
+        varying vec3 vWorldDir;
+        void main() {
+          vec3 d = normalize(vWorldDir);
+          float h = clamp(d.y, 0.0, 1.0);
+          vec3 col = mix(bottomColor, midColor, smoothstep(0.0, 0.28, h));
+          col = mix(col, topColor, smoothstep(0.22, 0.88, h));
+          float sunAmt = max(dot(d, normalize(sunDir)), 0.0);
+          col += sunGlowCol * pow(sunAmt, 14.0) * 0.45 * sunStrength;
+          col += sunGlowCol * pow(sunAmt, 180.0) * 1.15 * sunStrength;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `
+    });
+    const skyDome = new THREE.Mesh(new THREE.SphereGeometry(420, 32, 20), skyMat);
+    scene.add(skyDome);
+
+    // Starfield (visible at night)
+    const starCount = 1200;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const theta = rand() * Math.PI * 2;
+      const phi = Math.acos(0.06 + rand() * 0.94);
+      const r = 385;
+      starPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+      starPos[i * 3 + 1] = r * Math.cos(phi);
+      starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starMat = new THREE.PointsMaterial({
+      color: 0xeef5ff,
+      size: 1.85,
+      transparent: true,
+      opacity: 0.0,
+      fog: false,
+      depthWrite: false
+    });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    // Sun & Moon visual discs
+    const sunMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(8.5, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfff2c6, fog: false })
+    );
+    scene.add(sunMesh);
+
+    const moonMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(6.0, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xdce8ff, fog: false })
+    );
+    scene.add(moonMesh);
+
+    // Lights
+    const hemiLight = new THREE.HemisphereLight(0x9dc7f5, 0x5c5342, 0.72);
+    scene.add(hemiLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff1d6, 2.2);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.near = 10;
+    sunLight.shadow.camera.far = 260;
+    const sBound = 76;
+    sunLight.shadow.camera.left = -sBound;
+    sunLight.shadow.camera.right = sBound;
+    sunLight.shadow.camera.top = sBound;
+    sunLight.shadow.camera.bottom = -sBound;
+    sunLight.shadow.bias = -0.0005;
+    scene.add(sunLight);
+
+    const moonLight = new THREE.DirectionalLight(0x7ca6de, 0.0);
+    scene.add(moonLight);
+
+    // =========================================================================
+    // 6. TERRAIN MESH & FLOWING RIVER
+    // =========================================================================
+    const terrainSegs = 210;
+    const terrainGeo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, terrainSegs, terrainSegs);
+    terrainGeo.rotateX(-Math.PI / 2);
+
+    const posAttr = terrainGeo.attributes.position;
+    const colors = new Float32Array(posAttr.count * 3);
+    const tmpCol = new THREE.Color();
+
+    // Crop palettes for terraced steps
+    const terracePalette = [
+      new THREE.Color(0x6c8c3e), // Lush green millet
+      new THREE.Color(0xc4a44a), // Golden barley
+      new THREE.Color(0x527a3c), // Deep alpine emerald
+      new THREE.Color(0x9a8249), // Harvested wheat
+      new THREE.Color(0x7b9842), // Young buckwheat
+      new THREE.Color(0xb8943c)  // Mustard & barley
+    ];
+    const colRetainingWall = new THREE.Color(0x6b6358);
+    const colRiverBed      = new THREE.Color(0x525759);
+    const colPath          = new THREE.Color(0x8e795e);
+    const colGrassLow      = new THREE.Color(0x55753d);
+    const colGrassHigh     = new THREE.Color(0x666d48);
+    const colRock          = new THREE.Color(0x5b5d63);
+    const colRockDark      = new THREE.Color(0x41444b);
+    const colSnow          = new THREE.Color(0xf2f6fc);
+
+    // First pass: set heights
+    const metaCache = new Array(posAttr.count);
+    for (let i = 0; i < posAttr.count; i++) {
+      const x = posAttr.getX(i);
+      const z = posAttr.getZ(i);
+      const info = getTerrainInfo(x, z);
+      posAttr.setY(i, info.h);
+      metaCache[i] = info;
+    }
+    terrainGeo.computeVertexNormals();
+    const normAttr = terrainGeo.attributes.normal;
+
+    // Second pass: realistic alpine & terraced vertex coloring
+    for (let i = 0; i < posAttr.count; i++) {
+      const x = posAttr.getX(i);
+      const y = posAttr.getY(i);
+      const z = posAttr.getZ(i);
+      const ny = normAttr.getY(i);
+      const slope = 1.0 - ny;
+      const info = metaCache[i];
+      const nVar = valueNoise(x * 0.09 + 5, z * 0.09 - 3);
+
+      // Base meadow / tundra
+      tmpCol.copy(colGrassLow).lerp(colGrassHigh, smoothstep(6, 22, y));
+
+      // Terraced agricultural fields
+      if (info.terraceMask > 0.05 && info.padBlend < 0.7) {
+        const cropIdx = ((info.stepIdx % terracePalette.length) + terracePalette.length) % terracePalette.length;
+        const cropCol = terracePalette[cropIdx];
+        const tCol = cropCol.clone().lerp(colRetainingWall, info.riser * 0.92);
+        tmpCol.lerp(tCol, info.terraceMask * (1.0 - info.padBlend * 0.8));
+      }
+
+      // Rocky cliffs on steep slopes and high elevations
+      const rockMask = smoothstep(0.18, 0.42, slope) + smoothstep(18, 34, y) * 0.55;
+      tmpCol.lerp(nVar > 0.5 ? colRock : colRockDark, clamp(rockMask, 0, 1));
+
+      // High-altitude snowline on Himalayan peaks
+      const snowLine = 24.5 + nVar * 6.5 + slope * 15.0;
+      const snowMask = smoothstep(snowLine - 3.5, snowLine + 4.5, y) * (1.0 - smoothstep(0.55, 0.82, slope));
+      tmpCol.lerp(colSnow, clamp(snowMask, 0, 1));
+
+      // Riverbanks & wet pebbles
+      const bankMask = (1.0 - smoothstep(4.5, 9.2, info.dRiver)) * (1.0 - smoothstep(WATER_LEVEL + 0.3, WATER_LEVEL + 1.8, y));
+      tmpCol.lerp(colRiverBed, clamp(bankMask, 0, 1));
+
+      // Village dirt footpaths & house courtyards
+      const pMask = Math.max(getPathMask(x, z), info.padBlend * 0.75);
+      if (pMask > 0.01 && y > WATER_LEVEL + 0.5) {
+        tmpCol.lerp(colPath, clamp(pMask * 0.85, 0, 1));
+      }
+
+      // Subtle organic brightness variation
+      const jitter = 0.93 + nVar * 0.14;
+      colors[i * 3]     = clamp(tmpCol.r * jitter, 0, 1);
+      colors[i * 3 + 1] = clamp(tmpCol.g * jitter, 0, 1);
+      colors[i * 3 + 2] = clamp(tmpCol.b * jitter, 0, 1);
+    }
+    terrainGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const terrainMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      map: createTerrainDetailTexture(),
+      roughness: 0.92,
+      metalness: 0.02
+    });
+    const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+    terrainMesh.receiveShadow = true;
+    scene.add(terrainMesh);
+
+    // Animated River Ribbon following riverCenterX(z)
+    const riverSegsZ = 180;
+    const riverSegsX = 8;
+    const riverWidth = 17.5;
+    const riverGeo = new THREE.BufferGeometry();
+    const rVerts = [];
+    const rUVs = [];
+    const rIndices = [];
+
+    for (let iz = 0; iz <= riverSegsZ; iz++) {
+      const tz = iz / riverSegsZ;
+      const z = -WORLD_HALF + tz * WORLD_SIZE;
+      const cx = riverCenterX(z);
+      for (let ix = 0; ix <= riverSegsX; ix++) {
+        const tx = ix / riverSegsX;
+        const x = cx + (tx - 0.5) * riverWidth;
+        rVerts.push(x, WATER_LEVEL, z);
+        rUVs.push(tx, tz);
+      }
+    }
+    for (let iz = 0; iz < riverSegsZ; iz++) {
+      for (let ix = 0; ix < riverSegsX; ix++) {
+        const a = iz * (riverSegsX + 1) + ix;
+        const b = a + 1;
+        const c = a + (riverSegsX + 1);
+        const d = c + 1;
+        rIndices.push(a, c, b, b, c, d);
+      }
+    }
+    riverGeo.setAttribute('position', new THREE.Float32BufferAttribute(rVerts, 3));
+    riverGeo.setAttribute('uv', new THREE.Float32BufferAttribute(rUVs, 2));
+    riverGeo.setIndex(rIndices);
+    riverGeo.computeVertexNormals();
+
+    const waterTex = createWaterTexture();
+    const riverMat = new THREE.MeshStandardMaterial({
+      map: waterTex,
+      color: 0x62b4c9,
+      roughness: 0.16,
+      metalness: 0.22,
+      transparent: true,
+      opacity: 0.86
+    });
+    const riverMesh = new THREE.Mesh(riverGeo, riverMat);
+    riverMesh.receiveShadow = true;
+    scene.add(riverMesh);
+
+    // =========================================================================
+    // 7. SHARED MATERIALS, COLLIDERS & VILLAGE ARCHITECTURE
+    // =========================================================================
+    const stoneTex = createStoneTexture();
+    const woodTex = createWoodTexture('#5e3d24', '#331d0f');
+    const darkWoodTex = createWoodTexture('#3e2717', '#211309');
+    const roofTex = createRoofTexture();
+    const wheelTex = createPrayerWheelTexture();
+
+    const matStone = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.92, metalness: 0.04 });
+    const matWood = new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.85, metalness: 0.04 });
+    const matDarkWood = new THREE.MeshStandardMaterial({ map: darkWoodTex, roughness: 0.88, metalness: 0.05 });
+    const matTrimRed = new THREE.MeshStandardMaterial({ color: 0x8d2b24, roughness: 0.78 });
+    const matRoof = new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.86, metalness: 0.08 });
+    const matWhitewash = new THREE.MeshStandardMaterial({ color: 0xefe9dc, roughness: 0.9 });
+    const matGold = new THREE.MeshStandardMaterial({ color: 0xe6b43c, roughness: 0.28, metalness: 0.82 });
+    const matCopper = new THREE.MeshStandardMaterial({ color: 0x9c5530, roughness: 0.38, metalness: 0.72 });
+
+    // Glowing window & lantern materials (updated dynamically with Day/Night cycle)
+    const matWindowGlow = new THREE.MeshStandardMaterial({
+      color: 0x3b3835,
+      emissive: new THREE.Color(0xff9e38),
+      emissiveIntensity: 0.0,
+      roughness: 0.25
+    });
+    const matLanternGlow = new THREE.MeshStandardMaterial({
+      color: 0xffd584,
+      emissive: new THREE.Color(0xff9a2e),
+      emissiveIntensity: 0.2,
+      roughness: 0.3
+    });
+
+    const colliders = []; // Circular & OBB-like collision obstacles for player
+    const chimneyTops = [];
+    const lanternLights = [];
+
+    // --- Build Stone Himalayan Houses ---
+    function buildHouse(def, idx) {
+      const g = new THREE.Group();
+      const baseY = getTerrainHeight(def.x, def.z);
+      g.position.set(def.x, baseY, def.z);
+      g.rotation.y = def.rot;
+
+      const { w, d, h } = def;
+
+      // Deep stone foundation plinth so slopes never expose gaps
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 2.2, d + 0.5), matStone);
+      plinth.position.y = -0.75;
+      plinth.castShadow = true;
+      plinth.receiveShadow = true;
+      g.add(plinth);
+
+      // Main stone body
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matStone);
+      body.position.y = h * 0.5 + 0.3;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      g.add(body);
+
+      // Painted crimson Tibetan-style upper frieze band
+      const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.14, 0.38, d + 0.14), matTrimRed);
+      band.position.y = h + 0.16;
+      g.add(band);
+
+      // Corner timber beams
+      const beamGeo = new THREE.BoxGeometry(0.24, h + 0.3, 0.24);
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const beam = new THREE.Mesh(beamGeo, matDarkWood);
+          beam.position.set(sx * (w * 0.5 + 0.02), h * 0.5 + 0.3, sz * (d * 0.5 + 0.02));
+          beam.castShadow = true;
+          g.add(beam);
+        }
+      }
+
+      // Sloped overhanging slate roof (two pitched panels + gable triangles)
+      const roofOverhang = 0.7;
+      const ridgeH = 1.45;
+      const halfSpan = d * 0.5 + roofOverhang;
+      const slopeLen = Math.hypot(halfSpan, ridgeH);
+      const slopeAngle = Math.atan2(ridgeH, halfSpan);
+
+      const panelGeo = new THREE.BoxGeometry(w + roofOverhang * 2, 0.22, slopeLen + 0.2);
+      const frontRoof = new THREE.Mesh(panelGeo, matRoof);
+      frontRoof.position.set(0, h + 0.3 + ridgeH * 0.5, halfSpan * 0.5);
+      frontRoof.rotation.x = slopeAngle;
+      frontRoof.castShadow = true;
+      frontRoof.receiveShadow = true;
+      g.add(frontRoof);
+
+      const backRoof = new THREE.Mesh(panelGeo, matRoof);
+      backRoof.position.set(0, h + 0.3 + ridgeH * 0.5, -halfSpan * 0.5);
+      backRoof.rotation.x = -slopeAngle;
+      backRoof.castShadow = true;
+      backRoof.receiveShadow = true;
+      g.add(backRoof);
+
+      // Timber ridge beam
+      const ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(w + roofOverhang * 2 + 0.2, 0.24, 0.24), matDarkWood);
+      ridgeBeam.position.set(0, h + 0.3 + ridgeH + 0.06, 0);
+      g.add(ridgeBeam);
+
+      // Gable end triangles
+      const gableShape = new THREE.Shape();
+      gableShape.moveTo(-d * 0.5, 0);
+      gableShape.lineTo(d * 0.5, 0);
+      gableShape.lineTo(0, ridgeH);
+      gableShape.closePath();
+      const gableGeo = new THREE.ExtrudeGeometry(gableShape, { depth: 0.22, bevelEnabled: false });
+      gableGeo.rotateY(Math.PI / 2);
+      for (const sx of [-1, 1]) {
+        const gable = new THREE.Mesh(gableGeo, matWood);
+        gable.position.set(sx * (w * 0.5 - 0.11), h + 0.3, 0);
+        g.add(gable);
+      }
+
+      // Wooden door & lintel on front (+Z)
+      const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.38, 2.22, 0.2), matDarkWood);
+      doorFrame.position.set(0, 1.42, d * 0.5 + 0.04);
+      g.add(doorFrame);
+
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.12, 2.02, 0.14), matWood);
+      door.position.set(0, 1.32, d * 0.5 + 0.09);
+      g.add(door);
+
+      // Decorative windows with frames & warm glowing panes
+      const addWindow = (wx, wy, wz, rotY) => {
+        const wg = new THREE.Group();
+        wg.position.set(wx, wy, wz);
+        wg.rotation.y = rotY;
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.06, 1.12, 0.18), matTrimRed);
+        wg.add(frame);
+        const sill = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.14, 0.26), matDarkWood);
+        sill.position.y = -0.58;
+        wg.add(sill);
+        const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.84), matWindowGlow);
+        pane.position.z = 0.1;
+        wg.add(pane);
+        // Window mullion cross
+        const mV = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.86, 0.05), matDarkWood);
+        mV.position.z = 0.11;
+        wg.add(mV);
+        const mH = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.06, 0.05), matDarkWood);
+        mH.position.z = 0.11;
+        wg.add(mH);
+        g.add(wg);
+      };
+
+      // Front windows
+      addWindow(-w * 0.31, 2.05, d * 0.5 + 0.02, 0);
+      addWindow( w * 0.31, 2.05, d * 0.5 + 0.02, 0);
+      if (def.twoStory) {
+        addWindow(-w * 0.28, h - 0.55, d * 0.5 + 0.02, 0);
+        addWindow( 0,        h - 0.55, d * 0.5 + 0.02, 0);
+        addWindow( w * 0.28, h - 0.55, d * 0.5 + 0.02, 0);
+      }
+      // Side & back windows
+      addWindow(w * 0.5 + 0.02, 2.2, 0, Math.PI / 2);
+      addWindow(-w * 0.5 - 0.02, 2.2, 0, -Math.PI / 2);
+      addWindow(0, 2.2, -d * 0.5 - 0.02, Math.PI);
+
+      // Stone chimney on the roof
+      const chimX = (idx % 2 === 0 ? 1 : -1) * (w * 0.28);
+      const chimZ = -d * 0.18;
+      const chimH = 2.35;
+      const chim = new THREE.Mesh(new THREE.BoxGeometry(0.88, chimH, 0.88), matStone);
+      chim.position.set(chimX, h + 0.3 + ridgeH * 0.5 + chimH * 0.38, chimZ);
+      chim.castShadow = true;
+      g.add(chim);
+
+      const chimCap = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.16, 1.06), matRoof);
+      chimCap.position.set(chimX, chim.position.y + chimH * 0.5 + 0.08, chimZ);
+      g.add(chimCap);
+
+      // Record world position of chimney top for smoke emitter
+      g.updateMatrixWorld(true);
+      const worldChim = new THREE.Vector3(chimX, chimCap.position.y + 0.18, chimZ).applyMatrix4(g.matrixWorld);
+      chimneyTops.push(worldChim);
+
+      // Hanging doorway lantern on key central houses
+      if (idx === 0 || idx === 2 || idx === 5) {
+        const lan = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.34, 6), matLanternGlow);
+        lan.position.set(1.15, 2.35, d * 0.5 + 0.45);
+        g.add(lan);
+        const pt = new THREE.PointLight(0xff9e3b, 0.0, 14, 1.6);
+        pt.position.copy(lan.position);
+        g.add(pt);
+        lanternLights.push({ light: pt, baseIntensity: 2.2, phase: rand() * 10 });
+      }
+
+      scene.add(g);
+
+      // Register circular collider approximating the house footprint
+      colliders.push({ x: def.x, z: def.z, r: Math.hypot(w, d) * 0.44 });
+    }
+
+    HOUSE_DEFS.forEach((hd, i) => buildHouse(hd, i));
+
+    // --- Build Arched Himalayan Timber Bridge ---
+    const bridgeGroup = new THREE.Group();
+    const plankCount = 34;
+    const bridgeLen = BRIDGE_X_MAX - BRIDGE_X_MIN;
+
+    for (let i = 0; i <= plankCount; i++) {
+      const u = i / plankCount;
+      const x = lerp(BRIDGE_X_MIN, BRIDGE_X_MAX, u);
+      const y = getBridgeDeckY(x);
+      const nextY = getBridgeDeckY(x + 0.2);
+      const slope = Math.atan2(nextY - y, 0.2);
+
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen / plankCount * 0.9, 0.18, BRIDGE_HALF_WIDTH * 2), matWood);
+      plank.position.set(x, y - 0.09, BRIDGE_Z);
+      plank.rotation.z = slope;
+      plank.castShadow = true;
+      plank.receiveShadow = true;
+      bridgeGroup.add(plank);
+    }
+
+    // Side rails & support posts
+    const postPositions = [];
+    for (let i = 0; i <= 8; i++) {
+      const u = i / 8;
+      const x = lerp(BRIDGE_X_MIN, BRIDGE_X_MAX, u);
+      const y = getBridgeDeckY(x);
+      for (const sz of [-1, 1]) {
+        const pz = BRIDGE_Z + sz * (BRIDGE_HALF_WIDTH - 0.12);
+        const postH = (i === 0 || i === 8) ? 2.8 : 1.15;
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, postH, 0.18), matDarkWood);
+        post.position.set(x, y + postH * 0.5 - 0.05, pz);
+        post.castShadow = true;
+        bridgeGroup.add(post);
+
+        if (i === 0 || i === 8) {
+          postPositions.push(new THREE.Vector3(x, y + postH - 0.15, pz));
+        }
+
+        // Stone abutments at bridge ends
+        if (i === 0 || i === 8) {
+          const abut = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 1.0), matStone);
+          abut.position.set(x, y - 1.35, pz);
+          abut.castShadow = true;
+          abut.receiveShadow = true;
+          bridgeGroup.add(abut);
+        }
+      }
+    }
+
+    // Handrail stringers along both bridge sides
+    for (const sz of [-1, 1]) {
+      const pz = BRIDGE_Z + sz * (BRIDGE_HALF_WIDTH - 0.12);
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const x = lerp(BRIDGE_X_MIN, BRIDGE_X_MAX, i / 16);
+        pts.push(new THREE.Vector3(x, getBridgeDeckY(x) + 1.02, pz));
+      }
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const rail = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.075, 6, false), matDarkWood);
+      rail.castShadow = true;
+      bridgeGroup.add(rail);
+    }
+
+    // Bridge lantern at center arch
+    const bridgeLantern = new THREE.PointLight(0xffa442, 0, 15, 1.6);
+    bridgeLantern.position.set(0, getBridgeDeckY(0) + 2.4, BRIDGE_Z);
+    bridgeGroup.add(bridgeLantern);
+    lanternLights.push({ light: bridgeLantern, baseIntensity: 2.0, phase: 2.1 });
+    scene.add(bridgeGroup);
+
+    // =========================================================================
+    // 8. INTERACTIVE PRAYER WHEELS & HIMALAYAN STUPA (CHORTEN)
+    // =========================================================================
+    const prayerWheels = [];
+    const prayerWheelMeshes = [];
+
+    function createSinglePrayerWheel(scale = 1.0) {
+      const root = new THREE.Group();
+      const spinner = new THREE.Group();
+      root.add(spinner);
+
+      const radius = 0.24 * scale;
+      const height = 0.62 * scale;
+
+      const cyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, height, 20),
+        new THREE.MeshStandardMaterial({ map: wheelTex, roughness: 0.34, metalness: 0.68 })
+      );
+      cyl.castShadow = true;
+      spinner.add(cyl);
+
+      // Top & bottom molded copper rims
+      const rimGeo = new THREE.CylinderGeometry(radius * 1.12, radius * 1.12, 0.065 * scale, 20);
+      const topRim = new THREE.Mesh(rimGeo, matCopper);
+      topRim.position.y = height * 0.5 + 0.02 * scale;
+      spinner.add(topRim);
+
+      const botRim = new THREE.Mesh(rimGeo, matCopper);
+      botRim.position.y = -height * 0.5 - 0.02 * scale;
+      spinner.add(botRim);
+
+      // Decorative lotus dome finial on top
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.72, 0.16 * scale, 16), matGold);
+      cap.position.y = height * 0.5 + 0.12 * scale;
+      spinner.add(cap);
+
+      // Central iron/wood spindle axle (static)
+      const axle = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.032 * scale, 0.032 * scale, height + 0.44 * scale, 8),
+        matDarkWood
+      );
+      root.add(axle);
+
+      const wheelIndex = prayerWheels.length;
+      spinner.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.userData.wheelIndex = wheelIndex;
+          prayerWheelMeshes.push(obj);
+        }
+      });
+
+      const wheelState = {
+        index: wheelIndex,
+        root,
+        spinner,
+        angVel: 0,
+        spinAccum: 0,
+        lastClickTime: 0
+      };
+      prayerWheels.push(wheelState);
+      return root;
+    }
+
+    function buildPrayerWheelShrine(x, z, rotY, count, withLight = true) {
+      const g = new THREE.Group();
+      const y = getTerrainHeight(x, z);
+      g.position.set(x, y, z);
+      g.rotation.y = rotY;
+
+      const spacing = 0.78;
+      const totalW = count * spacing + 0.9;
+
+      // Stone Mani wall base
+      const base = new THREE.Mesh(new THREE.BoxGeometry(totalW, 1.35, 1.05), matStone);
+      base.position.y = 0.42;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      g.add(base);
+
+      // Carved timber shelf
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(totalW + 0.18, 0.12, 1.18), matDarkWood);
+      shelf.position.y = 1.12;
+      g.add(shelf);
+
+      // Roof posts
+      for (const sx of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.65, 0.18), matTrimRed);
+        post.position.set(sx * (totalW * 0.5 - 0.15), 1.9, 0);
+        post.castShadow = true;
+        g.add(post);
+      }
+
+      // Upper beam holding axles
+      const topBeam = new THREE.Mesh(new THREE.BoxGeometry(totalW + 0.1, 0.16, 0.24), matDarkWood);
+      topBeam.position.y = 2.08;
+      g.add(topBeam);
+
+      // Pitched pagoda-like shingle roof
+      const rSpan = 1.05;
+      const roofP1 = new THREE.Mesh(new THREE.BoxGeometry(totalW + 0.9, 0.12, rSpan), matRoof);
+      roofP1.position.set(0, 2.72, 0.42);
+      roofP1.rotation.x = 0.42;
+      roofP1.castShadow = true;
+      g.add(roofP1);
+
+      const roofP2 = new THREE.Mesh(new THREE.BoxGeometry(totalW + 0.9, 0.12, rSpan), matRoof);
+      roofP2.position.set(0, 2.72, -0.42);
+      roofP2.rotation.x = -0.42;
+      roofP2.castShadow = true;
+      g.add(roofP2);
+
+      // Golden ridge ornament
+      const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, totalW + 0.85, 8), matGold);
+      ridge.rotation.z = Math.PI / 2;
+      ridge.position.y = 2.95;
+      g.add(ridge);
+
+      // Row of clickable spinning prayer wheels
+      for (let i = 0; i < count; i++) {
+        const wx = (i - (count - 1) * 0.5) * spacing;
+        const w = createSinglePrayerWheel(1.0);
+        w.position.set(wx, 1.62, 0);
+        g.add(w);
+      }
+
+      if (withLight) {
+        const lan = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), matLanternGlow);
+        lan.position.set(0, 2.45, 0.62);
+        g.add(lan);
+        const pt = new THREE.PointLight(0xffaa44, 0, 14, 1.6);
+        pt.position.copy(lan.position);
+        g.add(pt);
+        lanternLights.push({ light: pt, baseIntensity: 2.5, phase: rand() * 8 });
+      }
+
+      scene.add(g);
+      colliders.push({ x, z, r: totalW * 0.36 });
+    }
+
+    // Main Village Prayer Wheel Pavilion (right in front of player spawn along path to bridge)
+    buildPrayerWheelShrine(-13.5, 5.0, -0.58, 6, true);
+    // East Bridgehead Prayer Wheels
+    buildPrayerWheelShrine(13.5, -3.5, 2.35, 3, true);
+
+    // --- Build Whitewashed Stupa (Chorten) + Grand Prayer Wheel ---
+    function buildStupaSanctuary(x, z) {
+      const g = new THREE.Group();
+      const y = getTerrainHeight(x, z);
+      g.position.set(x, y, z);
+
+      // Stepped white base
+      const step1 = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.3, 5.2), matWhitewash);
+      step1.position.y = 0.45;
+      step1.castShadow = true; step1.receiveShadow = true;
+      g.add(step1);
+
+      const step2 = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.85, 3.8), matWhitewash);
+      step2.position.y = 1.48;
+      step2.castShadow = true;
+      g.add(step2);
+
+      // Dome (Anda)
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(1.65, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.65), matWhitewash);
+      dome.position.y = 2.05;
+      dome.castShadow = true;
+      g.add(dome);
+
+      // Golden Harmika box + 13-ring spire
+      const harmika = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.82, 1.15), matGold);
+      harmika.position.y = 3.92;
+      g.add(harmika);
+
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(0.54, 2.3, 16), matGold);
+      spire.position.y = 5.45;
+      spire.castShadow = true;
+      g.add(spire);
+
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), matGold);
+      finial.position.y = 6.72;
+      g.add(finial);
+
+      // Grand interactive prayer wheel gazebo right beside the stupa
+      const gaz = new THREE.Group();
+      gaz.position.set(4.6, 0, 1.8);
+      const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.3, 0.7, 8), matStone);
+      ped.position.y = 0.25;
+      gaz.add(ped);
+
+      for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2 + Math.PI * 0.25;
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 2.6, 8), matTrimRed);
+        p.position.set(Math.cos(ang) * 0.95, 1.8, Math.sin(ang) * 0.95);
+        gaz.add(p);
+      }
+      const gazRoof = new THREE.Mesh(new THREE.ConeGeometry(1.65, 0.95, 8), matRoof);
+      gazRoof.position.y = 3.45;
+      gazRoof.castShadow = true;
+      gaz.add(gazRoof);
+
+      const grandWheel = createSinglePrayerWheel(2.05);
+      grandWheel.position.y = 1.72;
+      gaz.add(grandWheel);
+      g.add(gaz);
+
+      const pt = new THREE.PointLight(0xffad42, 0, 16, 1.6);
+      pt.position.set(4.6, 2.8, 1.8);
+      g.add(pt);
+      lanternLights.push({ light: pt, baseIntensity: 2.6, phase: 4.5 });
+
+      scene.add(g);
+      colliders.push({ x, z, r: 2.9 });
+      colliders.push({ x: x + 4.6, z: z + 1.8, r: 1.4 });
+      return new THREE.Vector3(x, y + 6.5, z);
+    }
+
+    const stupaTopPos = buildStupaSanctuary(-27.5, -25.0);
+
+    // =========================================================================
+    // 9. FLUTTERING PRAYER FLAGS (LUNGTA)
+    // =========================================================================
+    const flagColors = [0x2a6cd4, 0xf2efe6, 0xd63b2f, 0x2c944e, 0xe8b62e];
+    const flagMeshes = [];
+
+    function addPrayerFlagLine(pA, pB, sag = 1.25, count = 16) {
+      const curvePts = [];
+      for (let i = 0; i <= 12; i++) {
+        const t = i / 12;
+        const p = new THREE.Vector3().lerpVectors(pA, pB, t);
+        p.y -= Math.sin(t * Math.PI) * sag;
+        curvePts.push(p);
+      }
+      const curve = new THREE.CatmullRomCurve3(curvePts);
+      const rope = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 18, 0.018, 5, false),
+        new THREE.MeshBasicMaterial({ color: 0xdfd8c8 })
+      );
+      scene.add(rope);
+
+      const flagGeo = new THREE.PlaneGeometry(0.42, 0.34, 2, 1);
+      flagGeo.translate(0, -0.18, 0);
+
+      for (let i = 1; i < count; i++) {
+        const t = i / count;
+        const pos = curve.getPoint(t);
+        const tangent = curve.getTangent(t);
+        const mat = new THREE.MeshStandardMaterial({
+          color: flagColors[i % flagColors.length],
+          roughness: 0.85,
+          side: THREE.DoubleSide
+        });
+        const flag = new THREE.Mesh(flagGeo, mat);
+        flag.position.copy(pos);
+        flag.rotation.y = Math.atan2(tangent.x, tangent.z) + Math.PI * 0.5;
+        flag.userData.phase = rand() * Math.PI * 2;
+        flag.userData.baseRotY = flag.rotation.y;
+        scene.add(flag);
+        flagMeshes.push(flag);
+      }
+    }
+
+    // String prayer flags over the bridge
+    if (postPositions.length >= 4) {
+      addPrayerFlagLine(postPositions[0], postPositions[2], 1.15, 22);
+      addPrayerFlagLine(postPositions[1], postPositions[3], 1.15, 22);
+    }
+
+    // Radiating prayer flags from the Stupa to wooden poles around the sanctuary
+    const stupaPoleAngles = [0.4, 1.9, 3.3, 4.9];
+    for (const ang of stupaPoleAngles) {
+      const px = -27.5 + Math.cos(ang) * 11.5;
+      const pz = -25.0 + Math.sin(ang) * 11.5;
+      const py = getTerrainHeight(px, pz);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.5, 6), matDarkWood);
+      pole.position.set(px, py + 2.2, pz);
+      pole.castShadow = true;
+      scene.add(pole);
+      addPrayerFlagLine(stupaTopPos, new THREE.Vector3(px, py + 4.3, pz), 1.3, 18);
+    }
+
+    // Prayer flags across the main village lane
+    const lanePoleA = new THREE.Vector3(-17.0, getTerrainHeight(-17.0, 9.5) + 4.4, 9.5);
+    const lanePoleB = new THREE.Vector3(-9.5,  getTerrainHeight(-9.5, 2.0) + 4.4, 2.0);
+    for (const lp of [lanePoleA, lanePoleB]) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.6, 6), matDarkWood);
+      p.position.set(lp.x, lp.y - 2.2, lp.z);
+      scene.add(p);
+    }
+    addPrayerFlagLine(lanePoleA, lanePoleB, 0.9, 15);
+
+    // =========================================================================
+    // 10. INSTANCED HIMALAYAN DEODAR PINES & RIVER/MOUNTAIN BOULDERS
+    // =========================================================================
+    const treeTransforms = [];
+    for (let i = 0; i < 650; i++) {
+      const x = (rand() - 0.5) * 230;
+      const z = (rand() - 0.5) * 230;
+      const info = getTerrainInfo(x, z);
+
+      // Avoid riverbed, snow peaks, village paths, pads, and terraced crop flats
+      if (info.h < WATER_LEVEL + 1.0 || info.h > 25.0) continue;
+      if (info.dRiver < 9.8) continue;
+      if (info.padBlend > 0.05) continue;
+      if (info.terraceMask > 0.35 && rand() < 0.88) continue;
+      if (getPathMask(x, z) > 0.25) continue;
+
+      let nearObj = false;
+      for (const c of colliders) {
+        if (Math.hypot(x - c.x, z - c.z) < c.r + 3.2) { nearObj = true; break; }
+      }
+      if (nearObj) continue;
+
+      const s = 0.72 + rand() * 0.95;
+      treeTransforms.push({ x, y: info.h, z, s, rot: rand() * Math.PI * 2 });
+    }
+
+    const treeCount = treeTransforms.length;
+    const trunkInst = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.14, 0.28, 2.2, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4d3623, roughness: 0.95 }),
+      treeCount
+    );
+    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x264b2e, roughness: 0.9 });
+    const tier1Inst = new THREE.InstancedMesh(new THREE.ConeGeometry(1.9, 3.2, 7), foliageMat, treeCount);
+    const tier2Inst = new THREE.InstancedMesh(new THREE.ConeGeometry(1.45, 2.8, 7), foliageMat, treeCount);
+    const tier3Inst = new THREE.InstancedMesh(new THREE.ConeGeometry(0.95, 2.2, 7), foliageMat, treeCount);
+
+    [trunkInst, tier1Inst, tier2Inst, tier3Inst].forEach((m) => {
+      m.castShadow = true;
+      m.receiveShadow = true;
+    });
+
+    const dummy = new THREE.Object3D();
+    const treeCol = new THREE.Color();
+    treeTransforms.forEach((t, i) => {
+      dummy.rotation.set(0, t.rot, 0);
+
+      dummy.position.set(t.x, t.y + 0.9 * t.s, t.z);
+      dummy.scale.setScalar(t.s);
+      dummy.updateMatrix();
+      trunkInst.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(t.x, t.y + 2.8 * t.s, t.z);
+      dummy.updateMatrix();
+      tier1Inst.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(t.x, t.y + 4.4 * t.s, t.z);
+      dummy.updateMatrix();
+      tier2Inst.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(t.x, t.y + 5.8 * t.s, t.z);
+      dummy.updateMatrix();
+      tier3Inst.setMatrixAt(i, dummy.matrix);
+
+      // Natural conifer color variation
+      const shade = 0.78 + rand() * 0.42;
+      treeCol.setRGB(0.16 * shade, 0.34 * shade, 0.20 * shade);
+      tier1Inst.setColorAt(i, treeCol);
+      tier2Inst.setColorAt(i, treeCol);
+      tier3Inst.setColorAt(i, treeCol);
+    });
+    scene.add(trunkInst, tier1Inst, tier2Inst, tier3Inst);
+
+    // Instanced river rocks & alpine boulders
+    const rockCount = 260;
+    const rockInst = new THREE.InstancedMesh(
+      new THREE.DodecahedronGeometry(0.85, 0),
+      new THREE.MeshStandardMaterial({ color: 0x6f7074, roughness: 0.92 }),
+      rockCount
+    );
+    rockInst.castShadow = true;
+    rockInst.receiveShadow = true;
+
+    for (let i = 0; i < rockCount; i++) {
+      let x, z;
+      if (i < 165) {
+        // Line the river banks with smooth glacial boulders
+        z = (rand() - 0.5) * 190;
+        const side = rand() > 0.5 ? 1 : -1;
+        x = riverCenterX(z) + side * (5.2 + rand() * 5.0);
+        if (Math.abs(z) < 3.0) z += 5.0; // Keep bridge landing clear
+      } else {
+        x = (rand() - 0.5) * 170;
+        z = (rand() - 0.5) * 170;
+      }
+      const y = getTerrainHeight(x, z);
+      const sx = 0.5 + rand() * 1.4;
+      const sy = 0.35 + rand() * 0.85;
+      const sz = 0.5 + rand() * 1.3;
+      dummy.position.set(x, y + sy * 0.2, z);
+      dummy.rotation.set(rand() * 3, rand() * 3, rand() * 3);
+      dummy.scale.set(sx, sy, sz);
+      dummy.updateMatrix();
+      rockInst.setMatrixAt(i, dummy.matrix);
+    }
+    scene.add(rockInst);
+
+    // =========================================================================
+    // 11. CHIMNEY SMOKE & PRAYER WHEEL SPARKLE PARTICLES
+    // =========================================================================
+    const smokeTex = createSmokeTexture();
+    const smokeParticles = [];
+    const PUFFS_PER_CHIMNEY = 16;
+
+    for (const top of chimneyTops) {
+      for (let i = 0; i < PUFFS_PER_CHIMNEY; i++) {
+        const mat = new THREE.SpriteMaterial({
+          map: smokeTex,
+          color: 0xe8e6e2,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false
+        });
+        const sprite = new THREE.Sprite(mat);
+        scene.add(sprite);
+        smokeParticles.push({
+          sprite,
+          origin: top,
+          age: (i / PUFFS_PER_CHIMNEY) * 7.5,
+          life: 6.5 + rand() * 2.5,
+          driftX: 0.42 + rand() * 0.22,
+          driftZ: -0.18 + (rand() - 0.5) * 0.25,
+          riseSpeed: 0.72 + rand() * 0.28,
+          phase: rand() * Math.PI * 2
+        });
+      }
+    }
+
+    // Golden sparkle burst pool when spinning prayer wheels
+    const sparkles = [];
+    const sparkleGeo = new THREE.OctahedronGeometry(0.055, 0);
+    const sparkleMatBase = new THREE.MeshBasicMaterial({ color: 0xffe07d, transparent: true, opacity: 1 });
+    function spawnSparkles(worldPos) {
+      for (let i = 0; i < 10; i++) {
+        const m = new THREE.Mesh(sparkleGeo, sparkleMatBase.clone());
+        m.position.copy(worldPos);
+        const ang = rand() * Math.PI * 2;
+        const spd = 0.8 + rand() * 1.4;
+        scene.add(m);
+        sparkles.push({
+          mesh: m,
+          vel: new THREE.Vector3(Math.cos(ang) * spd, 1.2 + rand() * 1.6, Math.sin(ang) * spd),
+          age: 0,
+          life: 0.65 + rand() * 0.35
+        });
+      }
+    }
+
+    // =========================================================================
+    // 12. DAY / NIGHT CYCLE SYSTEM
+    // =========================================================================
+    let timeOfDay = 0.305; // Start around 7:19 AM crisp golden Himalayan morning
+    let timeSpeed = 1;     // 1x = 180s full day, toggleable to 8x with 'T'
+    const BASE_DAY_DURATION = 180;
+
+    // Color stops for smooth atmospheric interpolation
+    const C = {
+      nightTop:   new THREE.Color(0x060b18), nightMid:   new THREE.Color(0x101c33), nightBot:   new THREE.Color(0x1a2842),
+      dawnTop:    new THREE.Color(0x284785), dawnMid:    new THREE.Color(0xb86d63), dawnBot:    new THREE.Color(0xf7b272),
+      dayTop:     new THREE.Color(0x1d5ec4), dayMid:     new THREE.Color(0x7cb6e6), dayBot:     new THREE.Color(0xdbe8f2),
+      duskTop:    new THREE.Color(0x21356e), duskMid:    new THREE.Color(0xb85c58), duskBot:    new THREE.Color(0xf59956),
+      fogNight:   new THREE.Color(0x121c30), fogDawn:    new THREE.Color(0xd99e7c), fogDay:     new THREE.Color(0xc5daeb),
+      sunDawn:    new THREE.Color(0xff9a52), sunDay:     new THREE.Color(0xfff5e0),
+      hemiSkyDay: new THREE.Color(0x9ecaff), hemiSkyNit: new THREE.Color(0x273c63),
+      hemiGndDay: new THREE.Color(0x5e5543), hemiGndNit: new THREE.Color(0x141822)
+    };
+
+    const tmpTop = new THREE.Color(), tmpMid = new THREE.Color(), tmpBot = new THREE.Color();
+
+    function updateDayNight(dt, elapsedSec) {
+      timeOfDay = (timeOfDay + (dt * timeSpeed) / BASE_DAY_DURATION) % 1.0;
+
+      // Sun orbits east -> zenith -> west -> nadir
+      const angle = (timeOfDay - 0.25) * Math.PI * 2;
+      const sunDir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), -0.34).normalize();
+      const moonDir = sunDir.clone().negate();
+
+      const elev = sunDir.y; // -1..+1
+      const dayFactor = smoothstep(-0.08, 0.24, elev);
+      const twilightFactor = Math.exp(-Math.pow(elev / 0.14, 2)); // Peaks right at sunrise & sunset
+      const nightFactor = 1.0 - smoothstep(-0.14, 0.08, elev);
+      const isDusk = timeOfDay > 0.5;
+
+      // Sky gradient colors
+      tmpTop.copy(C.nightTop).lerp(C.dayTop, dayFactor).lerp(isDusk ? C.duskTop : C.dawnTop, twilightFactor * 0.72);
+      tmpMid.copy(C.nightMid).lerp(C.dayMid, dayFactor).lerp(isDusk ? C.duskMid : C.dawnMid, twilightFactor * 0.85);
+      tmpBot.copy(C.nightBot).lerp(C.dayBot, dayFactor).lerp(isDusk ? C.duskBot : C.dawnBot, twilightFactor * 0.92);
+
+      skyUniforms.topColor.value.copy(tmpTop);
+      skyUniforms.midColor.value.copy(tmpMid);
+      skyUniforms.bottomColor.value.copy(tmpBot);
+      skyUniforms.sunDir.value.copy(sunDir);
+      skyUniforms.sunStrength.value = clamp(dayFactor + twilightFactor * 0.85, 0, 1);
+      skyUniforms.sunGlowCol.value.copy(C.sunDawn).lerp(C.sunDay, smoothstep(0.05, 0.35, elev));
+
+      // Fog matches lower sky horizon
+      scene.fog.color.copy(C.fogNight).lerp(C.fogDay, dayFactor).lerp(C.fogDawn, twilightFactor * 0.75);
+
+      // Stars fade in at night
+      starMat.opacity = clamp(nightFactor * 0.95, 0, 1);
+      stars.rotation.y = timeOfDay * Math.PI * 2 * 0.25;
+
+      // Sun & Moon mesh positions (track around player so they stay infinitely distant)
+      sunMesh.position.copy(camera.position).addScaledVector(sunDir, 360);
+      sunMesh.visible = elev > -0.15;
+      moonMesh.position.copy(camera.position).addScaledVector(moonDir, 360);
+      moonMesh.visible = moonDir.y > -0.15;
+
+      // Directional Sun Light
+      sunLight.position.copy(sunDir).multiplyScalar(120);
+      sunLight.intensity = clamp(smoothstep(-0.04, 0.22, elev) * 2.45, 0, 2.45);
+      sunLight.color.copy(C.sunDawn).lerp(C.sunDay, smoothstep(0.04, 0.32, elev));
+
+      // Moonlight
+      moonLight.position.copy(moonDir).multiplyScalar(110);
+      moonLight.intensity = nightFactor * 0.62;
+
+      // Hemisphere ambient
+      hemiLight.color.copy(C.hemiSkyNit).lerp(C.hemiSkyDay, dayFactor);
+      hemiLight.groundColor.copy(C.hemiGndNit).lerp(C.hemiGndDay, dayFactor);
+      hemiLight.intensity = lerp(0.32, 0.78, dayFactor);
+
+      // House windows & village lanterns glow warmly at dusk/night
+      const glowAmt = clamp(nightFactor + twilightFactor * 0.45, 0, 1);
+      matWindowGlow.emissiveIntensity = glowAmt * 2.1;
+      matLanternGlow.emissiveIntensity = 0.25 + glowAmt * 2.6;
+      for (const ll of lanternLights) {
+        const flicker = 0.92 + 0.08 * Math.sin(elapsedSec * 9.5 + ll.phase) + 0.04 * Math.sin(elapsedSec * 23.0 + ll.phase);
+        ll.light.intensity = glowAmt * ll.baseIntensity * flicker;
+      }
+
+      // Smoke tint adjusts slightly for day/night
+      const smokeShade = lerp(0.45, 0.94, dayFactor);
+      for (const sp of smokeParticles) {
+        sp.sprite.material.color.setRGB(smokeShade, smokeShade, smokeShade * 0.98);
+      }
+
+      // Update clock HUD
+      const totalMins = Math.floor(timeOfDay * 1440);
+      const hrs24 = Math.floor(totalMins / 60);
+      const mins = totalMins % 60;
+      const ampm = hrs24 >= 12 ? 'PM' : 'AM';
+      const hrs12 = (hrs24 % 12) || 12;
+      timeEl.textContent = `${String(hrs12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${ampm}`;
+    }
+
+    // =========================================================================
+    // 13. FIRST-PERSON CONTROLS, GROUND & OBSTACLE COLLISION
+    // =========================================================================
+    const EYE_HEIGHT = 1.72;
+    const player = {
+      pos: new THREE.Vector3(-16.0, getWalkableHeight(-16.0, 12.0), 12.0),
+      velY: 0,
+      yaw: -0.62,   // Looking northeast toward prayer wheel pavilion, bridge & peaks
+      pitch: 0.04,
+      onGround: true,
+      bobPhase: 0
+    };
+
+    const keys = {};
+    let isLocked = false;
+    let totalSpins = 0;
+
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('start-btn');
+    const fpsEl = document.getElementById('fps-val');
+    const timeEl = document.getElementById('time-val');
+    const altEl = document.getElementById('alt-val');
+    const spinEl = document.getElementById('spin-val');
+    const speedEl = document.getElementById('speed-val');
+    const audioEl = document.getElementById('audio-val');
+    const crosshairEl = document.getElementById('crosshair');
+    const promptEl = document.getElementById('prompt');
+    const toastEl = document.getElementById('toast');
+
+    let toastTimer = null;
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 1800);
+    }
+
+    function requestLock() {
+      sound.init();
+      renderer.domElement.requestPointerLock();
+    }
+
+    startBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      requestLock();
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+      isLocked = document.pointerLockElement === renderer.domElement;
+      if (isLocked) {
+        overlay.classList.add('hidden');
+      } else {
+        startBtn.textContent = 'Resume Exploring';
+        overlay.classList.remove('hidden');
+        for (const k in keys) keys[k] = false;
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isLocked) return;
+      const sens = 0.0021;
+      player.yaw -= e.movementX * sens;
+      player.pitch = clamp(player.pitch - e.movementY * sens, -Math.PI * 0.47, Math.PI * 0.47);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (!isLocked) return;
+
+      if (e.code === 'KeyT') {
+        timeSpeed = timeSpeed === 1 ? 8 : (timeSpeed === 8 ? 24 : 1);
+        speedEl.textContent = `${timeSpeed}x`;
+        showToast(`Time speed: ${timeSpeed}x`);
+      } else if (e.code === 'KeyN') {
+        // Jump to next scenic time phase: Morning -> Noon -> Sunset -> Night
+        const phases = [0.28, 0.50, 0.74, 0.02];
+        const next = phases.find((p) => p > timeOfDay + 0.03) ?? phases[0];
+        timeOfDay = next;
+        const names = { 0.28: 'Sunrise', 0.50: 'Midday', 0.74: 'Sunset', 0.02: 'Starry Night' };
+        showToast(`Time skipped to ${names[next]}`);
+      } else if (e.code === 'KeyM') {
+        const on = sound.toggleMute();
+        audioEl.textContent = on ? 'On' : 'Muted';
+        showToast(on ? 'Audio enabled' : 'Audio muted');
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+    });
+
+    // Raycasting for clickable prayer wheels
+    const raycaster = new THREE.Raycaster();
+    raycaster.far = 9.5;
+    const centerNDC = new THREE.Vector2(0, 0);
+    let hoveredWheel = null;
+
+    function checkPrayerWheelTarget() {
+      raycaster.setFromCamera(centerNDC, camera);
+      const hits = raycaster.intersectObjects(prayerWheelMeshes, false);
+      if (hits.length > 0 && hits[0].object.userData.wheelIndex !== undefined) {
+        hoveredWheel = prayerWheels[hits[0].object.userData.wheelIndex];
+        crosshairEl.classList.add('active');
+        promptEl.classList.add('visible');
+      } else {
+        hoveredWheel = null;
+        crosshairEl.classList.remove('active');
+        promptEl.classList.remove('visible');
+      }
+    }
+
+    document.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (!isLocked) return;
+      if (hoveredWheel) {
+        hoveredWheel.angVel = Math.min(hoveredWheel.angVel + 12.5, 26.0);
+        totalSpins++;
+        spinEl.textContent = String(totalSpins);
+        sound.playChime(hoveredWheel.index);
+        const wp = new THREE.Vector3();
+        hoveredWheel.root.getWorldPosition(wp);
+        spawnSparkles(wp.add(new THREE.Vector3(0, 0.25, 0)));
+      }
+    });
+
+    function resolveObstacles(nx, nz) {
+      const playerRadius = 0.55;
+      // Keep inside valley boundary
+      const limit = WORLD_HALF - 18;
+      nx = clamp(nx, -limit, limit);
+      nz = clamp(nz, -limit, limit);
+
+      // Push out of house & shrine footprints
+      for (const c of colliders) {
+        const dx = nx - c.x;
+        const dz = nz - c.z;
+        const minD = c.r + playerRadius;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < minD * minD && d2 > 0.0001) {
+          const d = Math.sqrt(d2);
+          const push = (minD - d) / d;
+          nx += dx * push;
+          nz += dz * push;
+        }
+      }
+
+      // Gentle guard rails on the bridge edges
+      if (nx > BRIDGE_X_MIN + 0.4 && nx < BRIDGE_X_MAX - 0.4 && Math.abs(nz - BRIDGE_Z) < BRIDGE_HALF_WIDTH + 0.55) {
+        if (Math.abs(player.pos.z - BRIDGE_Z) <= BRIDGE_HALF_WIDTH - 0.15) {
+          nz = clamp(nz, BRIDGE_Z - (BRIDGE_HALF_WIDTH - 0.35), BRIDGE_Z + (BRIDGE_HALF_WIDTH - 0.35));
+        }
+      }
+
+      return { x: nx, z: nz };
+    }
+
+    function updatePlayer(dt) {
+      const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+      const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+      const move = new THREE.Vector3();
+
+      if (isLocked) {
+        if (keys['KeyW'] || keys['ArrowUp'])    move.add(forward);
+        if (keys['KeyS'] || keys['ArrowDown'])  move.sub(forward);
+        if (keys['KeyD'] || keys['ArrowRight']) move.add(right);
+        if (keys['KeyA'] || keys['ArrowLeft'])  move.sub(right);
+      }
+
+      const isMoving = move.lengthSq() > 0.001;
+      const inWater = !isOnBridge(player.pos.x, player.pos.z) && player.pos.y < WATER_LEVEL - 0.1;
+
+      if (isMoving) {
+        move.normalize();
+        const sprint = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1.72 : 1.0;
+        const waterSlow = inWater ? 0.58 : 1.0;
+        const speed = 6.4 * sprint * waterSlow;
+
+        const targetX = player.pos.x + move.x * speed * dt;
+        const targetZ = player.pos.z + move.z * speed * dt;
+        const resolved = resolveObstacles(targetX, targetZ);
+
+        // Prevent climbing sheer vertical cliffs
+        const curH = getWalkableHeight(player.pos.x, player.pos.z);
+        const nxtH = getWalkableHeight(resolved.x, resolved.z);
+        const stepDist = Math.hypot(resolved.x - player.pos.x, resolved.z - player.pos.z);
+        const slope = stepDist > 0.0001 ? (nxtH - curH) / stepDist : 0;
+
+        if (slope < 1.38 || nxtH <= curH) {
+          player.pos.x = resolved.x;
+          player.pos.z = resolved.z;
+        } else {
+          // Try sliding along X or Z independently on steep rock faces
+          const rx = resolveObstacles(targetX, player.pos.z);
+          if ((getWalkableHeight(rx.x, rx.z) - curH) / (Math.abs(rx.x - player.pos.x) + 0.001) < 1.38) {
+            player.pos.x = rx.x;
+          }
+          const rz = resolveObstacles(player.pos.x, targetZ);
+          if ((getWalkableHeight(rz.x, rz.z) - curH) / (Math.abs(rz.z - player.pos.z) + 0.001) < 1.38) {
+            player.pos.z = rz.z;
+          }
+        }
+      }
+
+      // Jump & Gravity + Ground Collision
+      if (isLocked && keys['Space'] && player.onGround) {
+        player.velY = 7.8;
+        player.onGround = false;
+      }
+
+      player.velY -= 22.0 * dt;
+      player.pos.y += player.velY * dt;
+
+      const groundY = Math.max(getWalkableHeight(player.pos.x, player.pos.z), WATER_LEVEL - 0.85);
+      if (player.pos.y <= groundY) {
+        player.pos.y = groundY;
+        player.velY = 0;
+        player.onGround = true;
+      } else if (player.onGround && player.pos.y - groundY < 0.45) {
+        // Stick smoothly while walking downhill / down terraces
+        player.pos.y = groundY;
+        player.velY = 0;
+      } else {
+        player.onGround = false;
+      }
+
+      // Subtle head-bob when walking on ground
+      let bobY = 0;
+      if (isMoving && player.onGround) {
+        const sprintMul = (keys['ShiftLeft'] || keys['ShiftRight']) ? 1.45 : 1.0;
+        player.bobPhase += dt * 9.5 * sprintMul;
+        bobY = Math.sin(player.bobPhase) * 0.055;
+      }
+
+      // Apply camera transform
+      camera.position.set(player.pos.x, player.pos.y + EYE_HEIGHT + bobY, player.pos.z);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = player.yaw;
+      camera.rotation.x = player.pitch;
+
+      // Sky dome stays centered on camera
+      skyDome.position.copy(camera.position);
+      stars.position.copy(camera.position);
+
+      // Update altitude readout (~3400m Himalayan village elevation)
+      const altMeters = Math.round(3395 + player.pos.y * 5.2);
+      altEl.textContent = `${altMeters.toLocaleString()} m`;
+
+      // Update ambience sound distance from river
+      const dRiver = Math.abs(player.pos.x - riverCenterX(player.pos.z));
+      sound.updateAmbience(dRiver, performance.now() * 0.001);
+    }
+
+    // =========================================================================
+    // 14. MAIN ANIMATION LOOP & FPS COUNTER
+    // =========================================================================
+    let lastTime = performance.now();
+    let fpsFrames = 0;
+    let fpsAccum = 0;
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const rawDt = (now - lastTime) * 0.001;
+      lastTime = now;
+      const dt = Math.min(rawDt, 0.05);
+      const elapsedSec = now * 0.001;
+
+      // FPS counter updated every 250ms
+      fpsFrames++;
+      fpsAccum += rawDt;
+      if (fpsAccum >= 0.25) {
+        const fps = Math.round(fpsFrames / fpsAccum);
+        fpsEl.textContent = String(fps);
+        fpsEl.style.color = fps >= 50 ? '#8ef0a8' : (fps >= 30 ? '#ffd166' : '#ff7b72');
+        fpsFrames = 0;
+        fpsAccum = 0;
+      }
+
+      // 1. Player controls & ground collision
+      updatePlayer(dt);
+
+      // 2. Day/Night cycle
+      updateDayNight(dt, elapsedSec);
+
+      // 3. Prayer wheel hover & spinning physics
+      if (isLocked) checkPrayerWheelTarget();
+      for (const w of prayerWheels) {
+        if (w.angVel > 0.005) {
+          w.spinner.rotation.y += w.angVel * dt;
+          w.angVel *= Math.exp(-0.55 * dt); // Smooth bearing friction
+          if (w.angVel < 0.01) w.angVel = 0;
+        }
+      }
+
+      // 4. Flowing river animation
+      waterTex.offset.y -= dt * 0.55;
+      waterTex.offset.x = Math.sin(elapsedSec * 0.6) * 0.04;
+
+      // 5. Fluttering prayer flags in mountain breeze
+      const windGust = 1.0 + 0.35 * Math.sin(elapsedSec * 0.9);
+      for (const f of flagMeshes) {
+        const wave = Math.sin(elapsedSec * 5.2 + f.userData.phase) * 0.24 * windGust;
+        f.rotation.x = 0.16 + Math.abs(wave) * 0.7;
+        f.rotation.z = wave * 0.65;
+      }
+
+      // 6. Rising chimney smoke puffs
+      for (const p of smokeParticles) {
+        p.age += dt;
+        if (p.age >= p.life) p.age -= p.life;
+        const t = p.age / p.life;
+        const curl = Math.sin(elapsedSec * 1.1 + p.phase + t * 4.0) * (0.25 + t * 0.9);
+
+        p.sprite.position.set(
+          p.origin.x + p.driftX * p.age * 1.15 + curl * 0.35,
+          p.origin.y + p.riseSpeed * p.age + t * 0.6,
+          p.origin.z + p.driftZ * p.age + Math.cos(elapsedSec * 0.9 + p.phase) * t * 0.45
+        );
+        const scale = 0.65 + t * 2.85;
+        p.sprite.scale.set(scale, scale, 1);
+        // Smooth fade-in then long gentle fade-out
+        const alpha = smoothstep(0.0, 0.14, t) * (1.0 - smoothstep(0.32, 1.0, t)) * 0.52;
+        p.sprite.material.opacity = alpha;
+      }
+
+      // 7. Golden prayer-wheel sparkles
+      for (let i = sparkles.length - 1; i >= 0; i--) {
+        const sp = sparkles[i];
+        sp.age += dt;
+        if (sp.age >= sp.life) {
+          scene.remove(sp.mesh);
+          sp.mesh.material.dispose();
+          sparkles.splice(i, 1);
+          continue;
+        }
+        const t = sp.age / sp.life;
+        sp.vel.y -= 2.4 * dt;
+        sp.mesh.position.addScaledVector(sp.vel, dt);
+        sp.mesh.rotation.y += dt * 5.0;
+        sp.mesh.scale.setScalar(1.0 - t * 0.8);
+        sp.mesh.material.opacity = 1.0 - t;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Kick off initial sky state and render loop
+    updateDayNight(0, 0);
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
