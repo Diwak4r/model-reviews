@@ -1,0 +1,2656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>The Life of a Prompt — 60s Motion Film</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  :root {
+    --ink: #0B0B0F;
+    --lime: #C6FF3D;
+    --paper: #F4F1EA;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Helvetica Neue', 'Arial Black', 'SF Pro Display', 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Strict 9:16 vertical stage scaled crisply into any viewport */
+  #stage-wrap {
+    position: relative;
+    height: 100vh;
+    width: calc(100vh * 9 / 16);
+    max-width: 100vw;
+    max-height: calc(100vw * 16 / 9);
+    background: var(--ink);
+    overflow: hidden;
+    border: 2px solid var(--ink);
+  }
+
+  #film-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+
+  /* Thin progress bar running along the bottom */
+  #progress-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 6px;
+    background: var(--ink);
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  #progress-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--lime);
+    transform-origin: left center;
+  }
+
+  /* Crisp flat Start / Pause Overlay (only 3 colours, no transparency) */
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8.5% 8%;
+    background: var(--ink);
+    z-index: 15;
+    transition: transform 0.28s cubic-bezier(0.85, 0, 0.15, 1);
+  }
+
+  #overlay.hidden {
+    transform: translateY(-100%);
+    pointer-events: none;
+  }
+
+  .ov-top {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 4px solid var(--paper);
+    border-bottom: 4px solid var(--paper);
+    padding: 12px 0;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    font-size: clamp(11px, 1.9vh, 18px);
+    color: var(--paper);
+  }
+
+  .ov-badge {
+    background: var(--lime);
+    color: var(--ink);
+    padding: 4px 10px;
+    font-weight: 900;
+  }
+
+  .ov-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: clamp(16px, 3vh, 32px);
+    width: 100%;
+  }
+
+  .ov-title {
+    font-size: clamp(32px, 6.4vh, 66px);
+    font-weight: 900;
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+    color: var(--paper);
+  }
+
+  .ov-title span {
+    display: inline-block;
+    background: var(--lime);
+    color: var(--ink);
+    padding: 2px 14px 4px;
+    margin-top: 6px;
+  }
+
+  #play-btn {
+    appearance: none;
+    border: 4px solid var(--paper);
+    background: var(--lime);
+    color: var(--ink);
+    padding: clamp(14px, 2.4vh, 24px) clamp(28px, 5vh, 52px);
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    font-family: inherit;
+    font-size: clamp(16px, 2.8vh, 28px);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.1s;
+  }
+
+  #play-btn:hover {
+    transform: scale(1.06);
+    background: var(--paper);
+    border-color: var(--lime);
+  }
+
+  #play-btn:active {
+    transform: scale(0.94);
+  }
+
+  #play-btn svg {
+    width: clamp(18px, 2.8vh, 28px);
+    height: clamp(18px, 2.8vh, 28px);
+    display: block;
+  }
+
+  .ov-bottom {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 4px solid var(--lime);
+    padding-top: 14px;
+    font-size: clamp(10px, 1.65vh, 16px);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: var(--paper);
+  }
+
+  .ov-key {
+    display: inline-block;
+    border: 2px solid var(--paper);
+    padding: 2px 7px;
+    margin: 0 3px;
+    color: var(--lime);
+  }
+
+  /* Compact pause badge when paused mid-playback */
+  #pause-pill {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: var(--ink);
+    border: 5px solid var(--lime);
+    padding: 18px 34px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 16;
+    cursor: pointer;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  #pause-pill.visible {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #pause-pill span {
+    font-size: clamp(16px, 2.6vh, 26px);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: var(--paper);
+  }
+</style>
+</head>
+<body>
+  <div id="stage-wrap">
+    <canvas id="film-canvas" width="1080" height="1920"></canvas>
+
+    <!-- Initial Cover & Play Overlay (strictly 3 colours, slides out cleanly on Play) -->
+    <div id="overlay">
+      <div class="ov-top">
+        <span>00:60 // 120 BPM</span>
+        <span class="ov-badge">9:16 REEL</span>
+      </div>
+
+      <div class="ov-center">
+        <div class="ov-title">
+          THE LIFE<br />OF A<br /><span>PROMPT</span>
+        </div>
+        <button id="play-btn" type="button" aria-label="Play Film">
+          <svg viewBox="0 0 24 24" fill="#0B0B0F" aria-hidden="true">
+            <polygon points="4,2 22,12 4,22" />
+          </svg>
+          <span>PLAY FILM</span>
+        </button>
+      </div>
+
+      <div class="ov-bottom">
+        <span><span class="ov-key">R</span> RESTART</span>
+        <span><span class="ov-key">SPACE</span> PAUSE</span>
+        <span>WEB AUDIO ON</span>
+      </div>
+    </div>
+
+    <!-- Minimal Pause Indicator (only visible if paused mid-film) -->
+    <div id="pause-pill" aria-label="Resume Film">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="#C6FF3D" aria-hidden="true">
+        <polygon points="4,2 22,12 4,22" />
+      </svg>
+      <span>PAUSED — TAP TO RESUME</span>
+    </div>
+
+    <!-- Thin Progress Bar Along Bottom -->
+    <div id="progress-track">
+      <div id="progress-fill"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // =========================================================================
+  // CONSTANTS & STRICT 3-COLOUR PALETTE
+  // =========================================================================
+  const W = 1080;
+  const H = 1920;
+  const SAFE_TOP = 120;
+  const SAFE_BOT = 1800;
+  const DURATION = 60.0;
+  const BPM = 120;
+  const BEAT = 60 / BPM;       // 0.500s
+  const STEP16 = BEAT / 4;     // 0.125s
+  const STEPS_PER_LOOP = Math.round(DURATION / STEP16); // 480
+
+  const INK   = '#0B0B0F';
+  const LIME  = '#C6FF3D';
+  const PAPER = '#F4F1EA';
+  const FONT  = "'Helvetica Neue', 'Arial Black', 'SF Pro Display', 'Segoe UI', Arial, sans-serif";
+
+  const canvas = document.getElementById('film-canvas');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const overlay = document.getElementById('overlay');
+  const playBtn = document.getElementById('play-btn');
+  const pausePill = document.getElementById('pause-pill');
+  const progressFill = document.getElementById('progress-fill');
+
+  // Easing helpers via GSAP (deterministic pure math functions)
+  const easeExpoOut   = gsap.parseEase('expo.out');
+  const easeExpoIn    = gsap.parseEase('expo.in');
+  const easeExpoInOut = gsap.parseEase('expo.inOut');
+  const easeBackOut   = gsap.parseEase('back.out(2.1)');
+  const easeBackSoft  = gsap.parseEase('back.out(1.4)');
+  const easePower4Out = gsap.parseEase('power4.out');
+
+  const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const invLerp = (a, b, v) => clamp01((v - a) / (b - a));
+
+  // =========================================================================
+  // DETERMINISTIC CANVAS DRAWING PRIMITIVES (STRICTLY 3 COLOURS, NO BLUR/ALPHA)
+  // =========================================================================
+  function fillBg(color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function roundRectPath(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+    ctx.closePath();
+  }
+
+  function drawBox(x, y, w, h, r, fill, stroke, strokeW) {
+    roundRectPath(x, y, w, h, r);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    if (stroke && strokeW > 0) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = strokeW;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+  }
+
+  function setFont(size, weight = 900) {
+    ctx.font = `${weight} ${Math.round(size)}px ${FONT}`;
+  }
+
+  // Fit bold text cleanly into a target width without ever clipping
+  function drawFitText(text, cx, cy, maxW, maxSize, color, align = 'center') {
+    setFont(maxSize, 900);
+    const m = ctx.measureText(text);
+    let size = maxSize;
+    if (m.width > maxW) {
+      size = maxSize * (maxW / m.width);
+      setFont(size, 900);
+    }
+    ctx.fillStyle = color;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, cx, cy);
+    return size;
+  }
+
+  // Deterministic micro screen-shake (no Math.random)
+  function getShake(t, hitTime, duration, amp) {
+    const dt = t - hitTime;
+    if (dt < 0 || dt > duration) return { x: 0, y: 0 };
+    const decay = Math.pow(1 - dt / duration, 2.2);
+    const x = Math.sin(dt * 115) * amp * decay;
+    const y = Math.cos(dt * 147) * amp * 0.72 * decay;
+    return { x, y };
+  }
+
+  // Crisp top caption pill guaranteed inside 120px safe top margin
+  function drawTopBanner(leftText, rightText, bg, fg, accent, wipeProg = 1) {
+    const y = SAFE_TOP + 22;
+    const h = 68;
+    const padX = 64;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padX, y, (W - padX * 2) * clamp01(wipeProg), h);
+    ctx.clip();
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(padX, y, W - padX * 2, h);
+    ctx.strokeStyle = fg;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(padX + 3, y + 3, W - padX * 2 - 6, h - 6);
+
+    setFont(34, 900);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(leftText, padX + 24, y + h / 2 + 2);
+
+    if (rightText) {
+      const rw = ctx.measureText(rightText).width + 40;
+      ctx.fillStyle = accent;
+      ctx.fillRect(W - padX - rw - 3, y + 3, rw, h - 6);
+      ctx.fillStyle = accent === INK ? PAPER : INK;
+      ctx.textAlign = 'center';
+      ctx.fillText(rightText, W - padX - rw / 2 - 3, y + h / 2 + 2);
+    }
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // GSAP MASTER TIMELINE STATE (100% DETERMINISTIC)
+  // =========================================================================
+  const S = {
+    // Scene 1 (0 - 2s)
+    s1: {
+      scaleX: 2.8, scaleY: 2.8,
+      barsIn: 0,
+      keyFrame: 0,
+      captionWipe: 0,
+      stripeShift: 0,
+      pressY: 0,
+      pressScaleY: 1,
+      morphToPhone: 0
+    },
+    // Scene 2 (2 - 10s)
+    s2: {
+      phoneY: 260,
+      phoneScale: 0.92,
+      peelProg: 0,
+      lineFlatten: 0
+    },
+    // Scene 3 (10 - 20s)
+    s3: {
+      routeProg: 0,
+      camX: 300,
+      camY: 430,
+      camZoom: 1.45,
+      dcReveal: 0,
+      dcRackLit: 0,
+      bladeWipe: 0
+    },
+    // Scene 4 (20 - 32s)
+    s4: {
+      bladeOpen: 0,
+      sliceProg: 0,
+      splitSep: 0,
+      stackProg: 0,
+      gridProg: 0,
+      lockClamp: 0,
+      scanRow: -1,
+      tokenCount: 6,
+      wipeOut: 0
+    },
+    // Scene 6 (44 - 54s)
+    s6: {
+      shutterStep: 0
+    },
+    // Scene 7 (54 - 60s)
+    s7: {
+      lineDraw: 0,
+      frameDraw: 0,
+      word1: 0,
+      word2: 0,
+      ruleWipe: 0,
+      word3: 0,
+      word4: 0,
+      subSlide: 0,
+      loopClose: 0
+    }
+  };
+
+  // Build Master 60s GSAP Timeline
+  const masterTL = gsap.timeline({ paused: true });
+  masterTL.set({}, {}, DURATION); // Lock exact 60.0s timeline length
+
+  // --- SCENE 1 TWEENS (0.0s – 2.0s) ---
+  masterTL
+    .fromTo(S.s1, { scaleX: 2.9, scaleY: 2.9 }, { scaleX: 1.15, scaleY: 0.85, duration: 0.16, ease: 'expo.out' }, 0.0)
+    .to(S.s1, { scaleX: 1.0, scaleY: 1.0, duration: 0.28, ease: 'back.out(2.6)' }, 0.16)
+    .fromTo(S.s1, { barsIn: 0 }, { barsIn: 1, duration: 0.35, ease: 'expo.out' }, 0.05)
+    .fromTo(S.s1, { keyFrame: 0 }, { keyFrame: 1, duration: 0.32, ease: 'back.out(1.9)' }, 0.50)
+    .fromTo(S.s1, { captionWipe: 0 }, { captionWipe: 1, duration: 0.34, ease: 'expo.out' }, 0.52)
+    .fromTo(S.s1, { stripeShift: 0 }, { stripeShift: 1, duration: 1.0, ease: 'none' }, 1.0)
+    .fromTo(S.s1, { pressY: 0, pressScaleY: 1 }, { pressY: 24, pressScaleY: 0.84, duration: 0.14, ease: 'power3.out' }, 1.50)
+    .to(S.s1, { pressY: 0, pressScaleY: 1.0, duration: 0.16, ease: 'back.out(2.0)' }, 1.64)
+    .fromTo(S.s1, { morphToPhone: 0 }, { morphToPhone: 1, duration: 0.28, ease: 'expo.inOut', immediateRender: false }, 1.72);
+
+  // --- SCENE 2 TWEENS (2.0s – 10.0s) ---
+  masterTL
+    .fromTo(S.s2, { phoneY: 240, phoneScale: 0.90 }, { phoneY: 0, phoneScale: 1.0, duration: 0.42, ease: 'back.out(1.5)', immediateRender: false }, 2.0)
+    .fromTo(S.s2, { peelProg: 0 }, { peelProg: 1, duration: 0.62, ease: 'expo.inOut', immediateRender: false }, 9.15)
+    .fromTo(S.s2, { lineFlatten: 0 }, { lineFlatten: 1, duration: 0.32, ease: 'expo.inOut', immediateRender: false }, 9.68);
+
+  // --- SCENE 3 TWEENS (10.0s – 20.0s) ---
+  masterTL
+    .fromTo(S.s3, { routeProg: 0 }, { routeProg: 0.25, duration: 2.0, ease: 'power2.out', immediateRender: false }, 10.0)
+    .to(S.s3, { routeProg: 0.58, duration: 2.5, ease: 'power1.inOut' }, 12.0)
+    .to(S.s3, { routeProg: 0.86, duration: 2.2, ease: 'expo.inOut' }, 14.5)
+    .to(S.s3, { routeProg: 1.0, duration: 1.3, ease: 'expo.out' }, 16.7)
+    // Dynamic camera panning across stylized world map
+    .fromTo(S.s3, { camX: 300, camY: 430, camZoom: 1.55 }, { camX: 720, camY: 410, camZoom: 1.15, duration: 2.5, ease: 'power2.inOut', immediateRender: false }, 10.0)
+    .to(S.s3, { camX: 1180, camY: 360, camZoom: 1.25, duration: 2.5, ease: 'power2.inOut' }, 12.5)
+    .to(S.s3, { camX: 1680, camY: 430, camZoom: 1.35, duration: 2.2, ease: 'expo.inOut' }, 15.0)
+    .to(S.s3, { camX: 1930, camY: 470, camZoom: 2.35, duration: 1.6, ease: 'expo.inOut' }, 17.2)
+    .fromTo(S.s3, { dcReveal: 0 }, { dcReveal: 1, duration: 0.55, ease: 'back.out(1.7)', immediateRender: false }, 17.5)
+    .fromTo(S.s3, { dcRackLit: 0 }, { dcRackLit: 6, duration: 1.2, ease: 'steps(6)', immediateRender: false }, 18.0)
+    .fromTo(S.s3, { bladeWipe: 0 }, { bladeWipe: 1, duration: 0.45, ease: 'expo.inOut', immediateRender: false }, 19.55);
+
+  // --- SCENE 4 TWEENS (20.0s – 32.0s) ---
+  masterTL
+    .fromTo(S.s4, { bladeOpen: 0 }, { bladeOpen: 1, duration: 0.42, ease: 'expo.out', immediateRender: false }, 20.0)
+    .fromTo(S.s4, { sliceProg: 0 }, { sliceProg: 1, duration: 0.48, ease: 'expo.out', immediateRender: false }, 20.5)
+    .fromTo(S.s4, { splitSep: 0 }, { splitSep: 1, duration: 0.65, ease: 'back.out(1.8)', immediateRender: false }, 20.9)
+    .fromTo(S.s4, { stackProg: 0 }, { stackProg: 1, duration: 0.75, ease: 'expo.inOut', immediateRender: false }, 22.0)
+    .fromTo(S.s4, { gridProg: 0 }, { gridProg: 1, duration: 0.85, ease: 'back.out(1.4)', immediateRender: false }, 24.0)
+    // Token counter climbing rhythmically across the scene
+    .fromTo(S.s4, { tokenCount: 6 }, { tokenCount: 64, duration: 1.5, ease: 'power2.out', immediateRender: false }, 21.0)
+    .to(S.s4, { tokenCount: 512, duration: 2.0, ease: 'expo.inOut' }, 22.5)
+    .to(S.s4, { tokenCount: 2048, duration: 2.5, ease: 'power2.inOut' }, 24.5)
+    .to(S.s4, { tokenCount: 4096, duration: 1.5, ease: 'expo.out' }, 27.0)
+    .fromTo(S.s4, { lockClamp: 0 }, { lockClamp: 1, duration: 0.48, ease: 'back.out(2.0)', immediateRender: false }, 28.5)
+    .fromTo(S.s4, { scanRow: 0 }, { scanRow: 4, duration: 2.0, ease: 'none', immediateRender: false }, 29.0)
+    .fromTo(S.s4, { wipeOut: 0 }, { wipeOut: 1, duration: 0.48, ease: 'expo.inOut', immediateRender: false }, 31.52);
+
+  // --- SCENE 7 TWEENS (54.0s – 60.0s) ---
+  masterTL
+    .fromTo(S.s7, { lineDraw: 0 }, { lineDraw: 1, duration: 1.0, ease: 'expo.out', immediateRender: false }, 54.0)
+    .fromTo(S.s7, { frameDraw: 0 }, { frameDraw: 1, duration: 0.85, ease: 'expo.inOut', immediateRender: false }, 54.55)
+    .fromTo(S.s7, { word1: 0 }, { word1: 1, duration: 0.35, ease: 'back.out(2.1)', immediateRender: false }, 55.0)
+    .fromTo(S.s7, { word2: 0 }, { word2: 1, duration: 0.35, ease: 'back.out(2.1)', immediateRender: false }, 55.5)
+    .fromTo(S.s7, { ruleWipe: 0 }, { ruleWipe: 1, duration: 0.35, ease: 'expo.out', immediateRender: false }, 56.15)
+    .fromTo(S.s7, { word3: 0 }, { word3: 1, duration: 0.35, ease: 'back.out(2.1)', immediateRender: false }, 56.5)
+    .fromTo(S.s7, { word4: 0 }, { word4: 1, duration: 0.38, ease: 'back.out(2.1)', immediateRender: false }, 57.0)
+    .fromTo(S.s7, { subSlide: 0 }, { subSlide: 1, duration: 0.42, ease: 'expo.out', immediateRender: false }, 57.4)
+    .fromTo(S.s7, { loopClose: 0 }, { loopClose: 1, duration: 1.35, ease: 'expo.inOut', immediateRender: false }, 58.65);
+
+  // =========================================================================
+  // SCENE 1 RENDERER: 0–2s HOOK ("ENTER")
+  // =========================================================================
+  function renderScene1(t) {
+    const inverted = t >= 1.0 && t < 1.72;
+    const bg = inverted ? LIME : INK;
+    const keyFill = inverted ? INK : LIME;
+    const keyText = inverted ? PAPER : INK;
+    const accent = inverted ? INK : PAPER;
+
+    fillBg(bg);
+
+    const shake = getShake(t, 0.0, 0.48, 28);
+    const shake2 = getShake(t, 1.0, 0.25, 16);
+    ctx.save();
+    ctx.translate(shake.x + shake2.x, shake.y + shake2.y);
+
+    // Top & Bottom Kinetic Bars (safe margin aware)
+    const barW = (W - 128) * S.s1.barsIn;
+    ctx.fillStyle = accent;
+    ctx.fillRect(64, SAFE_TOP + 12, barW, 14);
+    ctx.fillRect(W - 64 - barW, SAFE_BOT - 26, barW, 14);
+
+    // Kinetic chevron stripes moving from 1.0s - 1.72s
+    if (t >= 1.0 && S.s1.morphToPhone < 0.85) {
+      const mFade = 1 - S.s1.morphToPhone;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(64, 330, W - 128, 52 * mFade);
+      ctx.rect(64, 1538, W - 128, 52 * mFade);
+      ctx.clip();
+      ctx.fillStyle = INK;
+      const offset = (S.s1.stripeShift * 420) % 96;
+      for (let x = -120; x < W + 120; x += 96) {
+        ctx.beginPath();
+        ctx.moveTo(x + offset, 330);
+        ctx.lineTo(x + 48 + offset, 330);
+        ctx.lineTo(x + 20 + offset, 382);
+        ctx.lineTo(x - 28 + offset, 382);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x - offset, 1538);
+        ctx.lineTo(x + 48 - offset, 1538);
+        ctx.lineTo(x + 76 - offset, 1590);
+        ctx.lineTo(x + 28 - offset, 1590);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Top Caption: "THE LIFE OF A PROMPT" (wipes in at 0.52s)
+    if (S.s1.captionWipe > 0 && S.s1.morphToPhone < 0.5) {
+      drawTopBanner('THE LIFE OF A PROMPT', '00:60', bg, accent, inverted ? PAPER : LIME, S.s1.captionWipe);
+    }
+
+    // Morph target coordinates: Match-cut directly into Scene 2's ENTER button!
+    // Scene 2 ENTER button center: x = 795, y = 1565, w = 216, h = 92
+    const m = S.s1.morphToPhone;
+    const cx = lerp(W / 2, 795, m);
+    const cy = lerp(H / 2 + S.s1.pressY, 1565, m);
+    const kw = lerp(964, 216, m);
+    const kh = lerp(330, 92, m);
+    const kr = lerp(36, 18, m);
+
+    // During match-cut morph, reveal Paper backdrop rising behind the shrinking keycap
+    if (m > 0.01) {
+      ctx.fillStyle = PAPER;
+      ctx.fillRect(0, H * (1 - m), W, H * m);
+    }
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(S.s1.scaleX, S.s1.scaleY * S.s1.pressScaleY);
+
+    // Keycap base offset shadow block (pure solid flat ink/paper, zero blur)
+    if (S.s1.keyFrame > 0.02) {
+      const kf = S.s1.keyFrame;
+      const depth = lerp(22, 8, m) * (1 - S.s1.pressY / 30);
+      drawBox(-kw / 2 * kf, -kh / 2 * kf + depth, kw * kf, kh * kf, kr, accent, null, 0);
+      drawBox(-kw / 2 * kf, -kh / 2 * kf, kw * kf, kh * kf, kr, keyFill, accent, lerp(12, 6, m));
+    }
+
+    // Giant full-width "ENTER" word
+    const textColor = S.s1.keyFrame > 0.15 ? keyText : LIME;
+    const targetFontW = kw * 0.86;
+    drawFitText('ENTER', 0, lerp(10, 4, m), targetFontW, lerp(272, 48, m), textColor);
+    ctx.restore();
+
+    // Bottom pulse indicator (beats 0–3)
+    if (m < 0.3) {
+      const beatPulse = (t % BEAT) / BEAT;
+      const dotR = lerp(22, 12, easeExpoOut(beatPulse));
+      ctx.fillStyle = accent;
+      ctx.fillRect(64, SAFE_BOT - 90, 220, 44);
+      setFont(26, 900);
+      ctx.fillStyle = bg;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('PRESS START', 174, SAFE_BOT - 66);
+
+      ctx.beginPath();
+      ctx.arc(W - 94, SAFE_BOT - 68, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = inverted ? INK : LIME;
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // SCENE 2 RENDERER: 2–10s PHONE TYPING ("make me something amazing")
+  // =========================================================================
+  const PROMPT_STR = 'make me something amazing';
+  const PROMPT_LINES = ['make me', 'something', 'amazing'];
+  const KB_ROWS = [
+    ['Q','W','E','R','T','Y','U','I','O','P'],
+    ['A','S','D','F','G','H','J','K','L'],
+    ['Z','X','C','V','B','N','M']
+  ];
+
+  // Precompute exact keyboard key coordinates inside phone
+  const KEY_POS = {};
+  (() => {
+    const kbLeft = 174;
+    const kbW = 732;
+    const rowY = [1220, 1332, 1444];
+    KB_ROWS.forEach((row, rIdx) => {
+      const kw = 64;
+      const gap = 8;
+      const totalW = row.length * kw + (row.length - 1) * gap;
+      const startX = kbLeft + (kbW - totalW) / 2;
+      row.forEach((ch, cIdx) => {
+        KEY_POS[ch.toLowerCase()] = {
+          x: startX + cIdx * (kw + gap) + kw / 2,
+          y: rowY[rIdx] + 44,
+          w: kw,
+          h: 88
+        };
+      });
+    });
+    KEY_POS[' '] = { x: 472, y: 1565, w: 388, h: 92 };
+    KEY_POS['ENTER'] = { x: 795, y: 1565, w: 216, h: 92 };
+  })();
+
+  // Precompute character schedule: 25 chars every 0.25s from 2.50s to 8.75s
+  const CHAR_EVENTS = PROMPT_STR.split('').map((ch, idx) => ({
+    ch,
+    time: 2.50 + idx * 0.25,
+    key: KEY_POS[ch] || KEY_POS[' ']
+  }));
+
+  function getThumbPose(t) {
+    // Starts resting lower-right, hops cleanly to each key, then slams ENTER at 9.00s
+    if (t < 2.25) {
+      return { x: 880, y: 1680, press: 0, rot: -0.18 };
+    }
+    if (t >= 8.75) {
+      // Hop to ENTER key and slam at 9.00s
+      const moveP = easeExpoOut(invLerp(8.72, 8.98, t));
+      const prev = CHAR_EVENTS[CHAR_EVENTS.length - 1].key;
+      const target = KEY_POS['ENTER'];
+      const x = lerp(prev.x, target.x, moveP);
+      const arc = Math.sin(moveP * Math.PI) * -55;
+      const y = lerp(prev.y, target.y, moveP) + arc;
+      const dt = t - 9.00;
+      let press = 0;
+      if (dt >= 0 && dt < 0.24) {
+        press = Math.sin((dt / 0.24) * Math.PI);
+      }
+      return { x, y, press, rot: lerp(-0.1, 0.08, moveP) };
+    }
+    // Find current active typing interval
+    const rawIdx = (t - 2.50) / 0.25;
+    if (rawIdx < 0) {
+      const p = easeExpoOut(invLerp(2.25, 2.50, t));
+      const first = CHAR_EVENTS[0].key;
+      return { x: lerp(880, first.x, p), y: lerp(1680, first.y, p) - Math.sin(p * Math.PI) * 50, press: 0, rot: -0.16 };
+    }
+    const idx = Math.min(CHAR_EVENTS.length - 1, Math.floor(rawIdx));
+    const localT = t - CHAR_EVENTS[idx].time; // 0..0.25
+    const cur = CHAR_EVENTS[idx].key;
+    const next = idx < CHAR_EVENTS.length - 1 ? CHAR_EVENTS[idx + 1].key : cur;
+
+    if (localT < 0.11) {
+      // Pressing down on current key
+      const press = Math.sin((localT / 0.11) * Math.PI);
+      return { x: cur.x, y: cur.y, press, rot: (cur.x - 540) * 0.00055 };
+    } else {
+      // Arcing smoothly toward next key
+      const hopP = easeExpoInOut((localT - 0.11) / 0.14);
+      const x = lerp(cur.x, next.x, hopP);
+      const y = lerp(cur.y, next.y, hopP) - Math.sin(hopP * Math.PI) * 44;
+      return { x, y, press: 0, rot: (x - 540) * 0.00055 };
+    }
+  }
+
+  function renderScene2(t) {
+    const peel = S.s2.peelProg;
+    const flat = S.s2.lineFlatten;
+
+    // Background transitions from Paper to Ink as sentence peels into the map line
+    fillBg(flat > 0.05 ? INK : PAPER);
+    if (peel > 0 && flat <= 0.05) {
+      // Solid ink wipe rising cleanly behind peeling sentence
+      ctx.fillStyle = INK;
+      ctx.fillRect(0, 0, W, H * easeExpoIn(peel));
+    }
+
+    const sendShake = getShake(t, 9.00, 0.30, 22);
+    ctx.save();
+    ctx.translate(sendShake.x, sendShake.y);
+
+    // Subtle geometric beat grid ticks on Paper background
+    if (peel < 0.85) {
+      const beatFrac = (t % BEAT) / BEAT;
+      const tickLen = lerp(38, 18, easeExpoOut(beatFrac));
+      ctx.fillStyle = INK;
+      for (let y = 340; y <= 1660; y += 220) {
+        ctx.fillRect(28, y, tickLen, 8);
+        ctx.fillRect(W - 28 - tickLen, y, tickLen, 8);
+      }
+    }
+
+    // Dynamic kinetic top caption cycling every 1.5s (never static > 1.5s)
+    const captions = [
+      { t0: 2.0, left: '01 // INPUT',      right: 'TYPING' },
+      { t0: 3.5, left: 'HUMAN TO GLASS',   right: 'LIVE' },
+      { t0: 5.0, left: '25 KEYSTROKES',    right: '120 BPM' },
+      { t0: 6.5, left: 'ONE SENTENCE',     right: 'PROMPT' },
+      { t0: 8.0, left: 'READY TO SEND',    right: 'ENTER ↗' }
+    ];
+    let activeCap = captions[0];
+    for (let i = 0; i < captions.length; i++) {
+      if (t >= captions[i].t0) activeCap = captions[i];
+    }
+    const capAge = t - activeCap.t0;
+    const capWipe = easeExpoOut(clamp01(capAge / 0.28));
+    if (peel < 0.7) {
+      drawTopBanner(activeCap.left, activeCap.right, PAPER, INK, LIME, capWipe);
+    }
+
+    // --- MINIMAL FLAT PHONE BODY ---
+    const phoneDropY = S.s2.phoneY + easeExpoIn(peel) * 1450;
+    const phoneX = 140;
+    const phoneY = 290 + phoneDropY;
+    const phoneW = 800;
+    const phoneH = 1420;
+
+    if (peel < 0.95) {
+      ctx.save();
+      ctx.translate(W / 2, 1000 + phoneDropY);
+      ctx.scale(S.s2.phoneScale, S.s2.phoneScale);
+      ctx.translate(-W / 2, -(1000 + phoneDropY));
+
+      // Hard offset shadow block (pure ink, flat)
+      drawBox(phoneX + 18, phoneY + 22, phoneW, phoneH, 68, INK, null, 0);
+      // Main phone shell
+      drawBox(phoneX, phoneY, phoneW, phoneH, 68, PAPER, INK, 14);
+      // Speaker pill
+      drawBox(W / 2 - 78, phoneY + 32, 156, 22, 11, INK, null, 0);
+
+      // App header bar inside phone
+      const typedCount = CHAR_EVENTS.filter(e => t >= e.time).length;
+      ctx.fillStyle = INK;
+      ctx.fillRect(phoneX + 14, phoneY + 86, phoneW - 28, 72);
+      setFont(32, 900);
+      ctx.fillStyle = PAPER;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('PROMPT // NEW', phoneX + 42, phoneY + 123);
+      ctx.fillStyle = LIME;
+      ctx.textAlign = 'right';
+      ctx.fillText(`${String(typedCount).padStart(2, '0')}/25`, phoneX + phoneW - 42, phoneY + 123);
+
+      // --- KEYBOARD AREA ---
+      ctx.fillStyle = INK;
+      ctx.fillRect(phoneX + 14, phoneY + 884, phoneW - 28, 10);
+
+      // Find which key is currently pressed
+      let activeKeyChar = null;
+      for (let i = CHAR_EVENTS.length - 1; i >= 0; i--) {
+        const dt = t - CHAR_EVENTS[i].time;
+        if (dt >= 0 && dt < 0.14) {
+          activeKeyChar = CHAR_EVENTS[i].ch;
+          break;
+        }
+      }
+      const enterPressed = t >= 9.00 && t < 9.24;
+
+      // Draw letter keys
+      Object.keys(KEY_POS).forEach((k) => {
+        const kp = KEY_POS[k];
+        const isHit = (k === activeKeyChar) || (k === 'ENTER' && enterPressed);
+        const kx = kp.x - kp.w / 2;
+        const ky = kp.y - kp.h / 2 + phoneDropY + (isHit ? 6 : 0);
+        const fill = k === 'ENTER' ? (isHit ? INK : LIME) : (isHit ? LIME : PAPER);
+        const txtCol = k === 'ENTER' ? (isHit ? LIME : INK) : INK;
+
+        if (!isHit) {
+          drawBox(kx, ky + 6, kp.w, kp.h, 14, INK, null, 0);
+        }
+        drawBox(kx, ky, kp.w, kp.h, 14, fill, INK, 6);
+
+        setFont(k.length > 1 ? 30 : 34, 900);
+        ctx.fillStyle = txtCol;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = k === ' ' ? 'SPACE' : k.toUpperCase();
+        ctx.fillText(label, kp.x, ky + kp.h / 2 + 2);
+      });
+
+      ctx.restore();
+    }
+
+    // --- MESSAGE BUBBLE & SQUASH-AND-STRETCH TYPED LETTERS ---
+    // Peels off the phone screen at 9.15s and flattens into ONE LIME LINE at 10.0s!
+    const bubbleX0 = 192;
+    const bubbleY0 = 520 + phoneDropY * (1 - peel);
+    const bubbleW0 = 696;
+    const bubbleH0 = 490;
+
+    // Target peeled/flattened state
+    const curW = lerp(bubbleW0, 960, easeExpoInOut(peel));
+    const curH = lerp(bubbleH0, 14, easeExpoInOut(flat));
+    const curCX = W / 2;
+    const curCY = lerp(bubbleY0 + bubbleH0 / 2, H / 2, easeExpoInOut(peel));
+    const curRot = Math.sin(peel * Math.PI) * -0.075 * (1 - flat);
+    const curR = lerp(36, 4, flat);
+
+    ctx.save();
+    ctx.translate(curCX, curCY);
+    ctx.rotate(curRot);
+
+    const bFill = flat > 0.35 ? LIME : (t >= 9.00 ? LIME : INK);
+    const bStroke = flat > 0.6 ? LIME : INK;
+    const textCol = (t >= 9.00) ? INK : PAPER;
+
+    // Bubble lift shadow during peel
+    if (flat < 0.7) {
+      const shOff = lerp(12, 34, Math.sin(peel * Math.PI));
+      drawBox(-curW / 2 + shOff, -curH / 2 + shOff, curW, curH, curR, peel > 0.3 ? LIME : INK, null, 0);
+    }
+    drawBox(-curW / 2, -curH / 2, curW, curH, curR, bFill, bStroke, flat > 0.6 ? 0 : 10);
+
+    // Draw each typed letter with snappy Squash & Stretch (fades out cleanly via height clip as it flattens)
+    if (flat < 0.85) {
+      ctx.save();
+      roundRectPath(-curW / 2 + 10, -curH / 2 + 10, curW - 20, Math.max(2, curH - 20), curR);
+      ctx.clip();
+
+      const fontSize = 74;
+      setFont(fontSize, 900);
+      const lineSpacing = 104;
+      let charGlobalIdx = 0;
+      let cursorX = -curW / 2 + 54;
+      let cursorY = -lineSpacing;
+
+      PROMPT_LINES.forEach((line, lIdx) => {
+        const yPos = (lIdx - 1) * lineSpacing;
+        let xCursor = -curW / 2 + 54;
+
+        for (let c = 0; c < line.length; c++) {
+          const ev = CHAR_EVENTS[charGlobalIdx];
+          const ch = line[c];
+          const chW = ctx.measureText(ch).width + 2;
+
+          if (t >= ev.time) {
+            const age = t - ev.time;
+            let sx = 1, sy = 1, hopY = 0;
+            if (age < 0.08) {
+              const p = age / 0.08;
+              sx = lerp(0.35, 1.32, easeExpoOut(p));
+              sy = lerp(1.85, 0.74, easeExpoOut(p));
+              hopY = lerp(28, -14, easeExpoOut(p));
+            } else if (age < 0.22) {
+              const p = (age - 0.08) / 0.14;
+              sx = lerp(1.32, 1.0, easeBackOut(p));
+              sy = lerp(0.74, 1.0, easeBackOut(p));
+              hopY = lerp(-14, 0, easeBackOut(p));
+            }
+
+            ctx.save();
+            ctx.translate(xCursor + chW / 2, yPos + hopY);
+            ctx.scale(sx, sy);
+            ctx.fillStyle = (age < 0.10 && t < 9.0) ? LIME : textCol;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ch, 0, 0);
+            ctx.restore();
+
+            cursorX = xCursor + chW + 8;
+            cursorY = yPos;
+          }
+          xCursor += chW;
+          charGlobalIdx++;
+        }
+        // Account for space between wrapped lines
+        if (lIdx < PROMPT_LINES.length - 1) {
+          charGlobalIdx++;
+        }
+      });
+
+      // Blinking chunky lime cursor bar while typing
+      if (t < 9.05 && Math.floor(t * 4) % 2 === 0) {
+        ctx.fillStyle = LIME;
+        ctx.fillRect(cursorX, cursorY - 36, 12, 72);
+      }
+
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // --- STYLIZED BOLD GRAPHIC THUMB ---
+    if (peel < 0.9) {
+      const tp = getThumbPose(t);
+      const thumbDrop = easeExpoIn(peel) * 900;
+      ctx.save();
+      ctx.translate(tp.x, tp.y + thumbDrop + tp.press * 14);
+      ctx.rotate(tp.rot);
+      const sc = 1 - tp.press * 0.08;
+      ctx.scale(sc * (1 + tp.press * 0.12), sc * (1 - tp.press * 0.08));
+
+      // Tap impact ring (crisp flat lime ring, no blur)
+      if (tp.press > 0.25) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 44 + tp.press * 24, 0, Math.PI * 2);
+        ctx.strokeStyle = LIME;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+      }
+
+      // Bold graphic thumb silhouette extending cleanly toward bottom-right
+      ctx.beginPath();
+      ctx.moveTo(-48, -16);
+      ctx.quadraticCurveTo(-48, -76, 0, -76);
+      ctx.quadraticCurveTo(54, -76, 62, -10);
+      ctx.lineTo(155, 290);
+      ctx.lineTo(35, 340);
+      ctx.lineTo(-42, 75);
+      ctx.quadraticCurveTo(-52, 24, -48, -16);
+      ctx.closePath();
+      ctx.fillStyle = PAPER;
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 12;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Thumbnail accent
+      drawBox(-24, -56, 48, 52, 20, LIME, INK, 7);
+      // Knuckle crease lines
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(-16, 46);
+      ctx.lineTo(32, 34);
+      ctx.moveTo(-8, 66);
+      ctx.lineTo(34, 56);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // SCENE 3 RENDERER: 10–20s WORLD MAP ROUTE & DATA CENTRE
+  // =========================================================================
+  // Stylized geometric flat continents in virtual map coords (2400 x 1200)
+  const CONTINENTS = [
+    // North America
+    [[140,210],[350,150],[590,170],[680,260],[620,390],[520,450],[460,550],[360,540],[240,440],[170,330]],
+    // Greenland
+    [[690,110],[830,100],[860,210],[750,260],[680,190]],
+    // South America
+    [[540,580],[720,610],[820,730],[750,920],[630,1080],[570,960],[540,770],[500,660]],
+    // Europe
+    [[1020,210],[1210,170],[1360,210],[1350,360],[1210,410],[1080,420],[1000,340]],
+    // Africa
+    [[1020,460],[1240,450],[1390,540],[1460,650],[1370,820],[1250,990],[1140,960],[1080,770],[980,620]],
+    // Asia
+    [[1360,180],[1740,160],[2120,220],[2160,360],[2010,500],[1890,640],[1730,660],[1580,580],[1410,500],[1350,360]],
+    // Japan / Islands
+    [[2080,350],[2145,365],[2125,495],[2065,480]],
+    // Australia
+    [[1830,780],[2090,760],[2190,890],[2100,1020],[1880,990],[1810,890]]
+  ];
+
+  // Multi-hop global route polyline
+  const ROUTE_PTS = [
+    { x: 260,  y: 410, label: 'ORIGIN' },
+    { x: 560,  y: 395, label: 'EDGE' },
+    { x: 840,  y: 365, label: 'SUBSEA' },
+    { x: 1120, y: 320, label: 'IXP HUB' },
+    { x: 1460, y: 335, label: 'BACKBONE' },
+    { x: 1730, y: 430, label: 'CORE' },
+    { x: 1930, y: 470, label: 'DATA CENTRE' }
+  ];
+
+  // Precompute segment lengths for uniform parametric travel
+  const ROUTE_SEGS = [];
+  let ROUTE_TOTAL_LEN = 0;
+  for (let i = 0; i < ROUTE_PTS.length - 1; i++) {
+    const dx = ROUTE_PTS[i + 1].x - ROUTE_PTS[i].x;
+    const dy = ROUTE_PTS[i + 1].y - ROUTE_PTS[i].y;
+    const len = Math.hypot(dx, dy);
+    ROUTE_SEGS.push({ a: ROUTE_PTS[i], b: ROUTE_PTS[i + 1], len, start: ROUTE_TOTAL_LEN });
+    ROUTE_TOTAL_LEN += len;
+  }
+
+  function sampleRoute(prog) {
+    const target = clamp01(prog) * ROUTE_TOTAL_LEN;
+    for (let i = 0; i < ROUTE_SEGS.length; i++) {
+      const seg = ROUTE_SEGS[i];
+      if (target <= seg.start + seg.len || i === ROUTE_SEGS.length - 1) {
+        const local = seg.len > 0 ? clamp01((target - seg.start) / seg.len) : 1;
+        return {
+          x: lerp(seg.a.x, seg.b.x, local),
+          y: lerp(seg.a.y, seg.b.y, local),
+          angle: Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x),
+          segIdx: i
+        };
+      }
+    }
+    return { x: 1930, y: 470, angle: 0, segIdx: ROUTE_SEGS.length - 1 };
+  }
+
+  function renderScene3(t) {
+    fillBg(INK);
+
+    const prog = S.s3.routeProg;
+    const head = sampleRoute(prog);
+    const beatPulse = easeExpoOut((t % BEAT) / BEAT);
+
+    // --- VIRTUAL CAMERA WORLD MAP ---
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(S.s3.camZoom, S.s3.camZoom);
+    ctx.translate(-S.s3.camX, -S.s3.camY);
+
+    // Architectural crisp dashed grid (strictly Paper colour, no alpha)
+    ctx.strokeStyle = PAPER;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 28]);
+    for (let gx = 0; gx <= 2400; gx += 200) {
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, 1200);
+      ctx.stroke();
+    }
+    for (let gy = 0; gy <= 1200; gy += 200) {
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(2400, gy);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Stylized geometric continents (bold Paper fills with heavy Ink borders)
+    CONTINENTS.forEach((poly) => {
+      ctx.beginPath();
+      poly.forEach((pt, idx) => {
+        if (idx === 0) ctx.moveTo(pt[0], pt[1]);
+        else ctx.lineTo(pt[0], pt[1]);
+      });
+      ctx.closePath();
+      ctx.fillStyle = PAPER;
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 10;
+      ctx.lineJoin = 'miter';
+      ctx.stroke();
+    });
+
+    // Faint dotted planned route preview ahead
+    ctx.strokeStyle = LIME;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 18]);
+    ctx.beginPath();
+    ROUTE_PTS.forEach((pt, i) => {
+      if (i === 0) ctx.moveTo(pt.x, pt.y);
+      else ctx.lineTo(pt.x, pt.y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Drawn solid thick lime trajectory line up to `prog`
+    ctx.strokeStyle = LIME;
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    const targetDist = prog * ROUTE_TOTAL_LEN;
+    ctx.moveTo(ROUTE_PTS[0].x, ROUTE_PTS[0].y);
+    for (let i = 0; i < ROUTE_SEGS.length; i++) {
+      const seg = ROUTE_SEGS[i];
+      if (targetDist >= seg.start + seg.len) {
+        ctx.lineTo(seg.b.x, seg.b.y);
+      } else if (targetDist > seg.start) {
+        const local = (targetDist - seg.start) / seg.len;
+        ctx.lineTo(lerp(seg.a.x, seg.b.x, local), lerp(seg.a.y, seg.b.y, local));
+        break;
+      }
+    }
+    ctx.stroke();
+
+    // Waypoint nodes lighting up as the line crosses them
+    ROUTE_PTS.forEach((pt, idx) => {
+      const segStart = idx === 0 ? 0 : ROUTE_SEGS[idx - 1].start + ROUTE_SEGS[idx - 1].len;
+      const reached = targetDist >= segStart - 5;
+      if (idx < ROUTE_PTS.length - 1) {
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, reached ? 18 : 10, 0, Math.PI * 2);
+        ctx.fillStyle = reached ? LIME : INK;
+        ctx.fill();
+        ctx.strokeStyle = reached ? INK : LIME;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        if (reached) {
+          // Expanding radar ring on beat
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 22 + beatPulse * 24, 0, Math.PI * 2);
+          ctx.strokeStyle = LIME;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          // Node badge
+          drawBox(pt.x - 76, pt.y - 68, 152, 34, 6, INK, LIME, 3);
+          setFont(18, 900);
+          ctx.fillStyle = LIME;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pt.label, pt.x, pt.y - 50);
+        }
+      }
+    });
+
+    // Leading Packet Head (flying prompt line capsule)
+    if (prog < 0.99) {
+      ctx.save();
+      ctx.translate(head.x, head.y);
+      ctx.rotate(head.angle);
+      drawBox(-48, -22, 96, 44, 22, LIME, INK, 6);
+      setFont(17, 900);
+      ctx.fillStyle = INK;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('PROMPT', 0, 1);
+      ctx.restore();
+    }
+
+    // --- STYLIZED DATA CENTRE MONOLITH AT DESTINATION (1930, 470) ---
+    const dcX = 1930;
+    const dcY = 470;
+    const dcScale = lerp(0.55, 1.0, S.s3.dcReveal);
+    ctx.save();
+    ctx.translate(dcX, dcY);
+    ctx.scale(dcScale, dcScale);
+
+    // Building monolith
+    drawBox(-110, -155, 220, 260, 14, PAPER, INK, 10);
+    // Roof bar
+    drawBox(-124, -182, 248, 34, 6, LIME, INK, 8);
+    setFont(22, 900);
+    ctx.fillStyle = INK;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TIER-4 DC', 0, -164);
+
+    // 6 horizontal server rack blades lighting up from bottom to top
+    for (let r = 0; r < 6; r++) {
+      const ry = 60 - r * 36;
+      const isLit = (r + 1) <= S.s3.dcRackLit;
+      drawBox(-86, ry, 172, 26, 4, isLit ? LIME : INK, INK, 4);
+      // Tiny status dots
+      ctx.fillStyle = isLit ? INK : PAPER;
+      ctx.fillRect(-74, ry + 8, 12, 10);
+      ctx.fillRect(-54, ry + 8, 12, 10);
+      ctx.fillRect(46, ry + 8, 28, 10);
+    }
+    ctx.restore();
+
+    ctx.restore(); // End world camera transform
+
+    // --- SAFE-MARGIN HUD OVERLAYS ---
+    // Top rotating status banner (changes every 1.5s)
+    const mapCaps = [
+      { t0: 10.0, left: '02 // IN TRANSIT',  right: 'PACKET' },
+      { t0: 11.5, left: 'NORTH AMERICA',     right: 'HOP 01' },
+      { t0: 13.0, left: 'SUBSEA FIBER',      right: '4,200 M' },
+      { t0: 14.5, left: 'EUROPE IXP HUB',    right: 'HOP 02' },
+      { t0: 16.0, left: 'SPEED OF LIGHT',    right: 'OPTICAL' },
+      { t0: 17.5, left: 'DATA CENTRE LOCK',  right: 'DC-04' }
+    ];
+    let curMapCap = mapCaps[0];
+    for (let i = 0; i < mapCaps.length; i++) {
+      if (t >= mapCaps[i].t0) curMapCap = mapCaps[i];
+    }
+    drawTopBanner(curMapCap.left, curMapCap.right, INK, PAPER, LIME, easeExpoOut(clamp01((t - curMapCap.t0) / 0.25)));
+
+    // Bottom Telemetry Panel inside 120px safe bottom margin
+    const km = Math.round(prog * 12480);
+    const ms = Math.round(prog * 42);
+    const botY = SAFE_BOT - 128;
+    drawBox(64, botY, W - 128, 112, 16, INK, PAPER, 6);
+
+    setFont(26, 900);
+    ctx.fillStyle = PAPER;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('DISTANCE', 96, botY + 34);
+    setFont(46, 900);
+    ctx.fillStyle = LIME;
+    ctx.fillText(`${km.toLocaleString()} KM`, 96, botY + 80);
+
+    // Center live progress bar
+    drawBox(490, botY + 42, 260, 28, 6, INK, PAPER, 4);
+    ctx.fillStyle = LIME;
+    ctx.fillRect(496, botY + 48, 248 * prog, 16);
+
+    setFont(26, 900);
+    ctx.fillStyle = PAPER;
+    ctx.textAlign = 'right';
+    ctx.fillText('LATENCY', W - 96, botY + 34);
+    setFont(46, 900);
+    ctx.fillStyle = PAPER;
+    ctx.fillText(`${String(ms).padStart(2, '0')} MS`, W - 96, botY + 80);
+
+    // --- SHAPE MASK WIPE TO SCENE 4: 6 SERVER BLADES EXPAND ACROSS SCREEN ---
+    if (S.s3.bladeWipe > 0.001) {
+      const bw = S.s3.bladeWipe;
+      const bladeH = H / 6;
+      for (let b = 0; b < 6; b++) {
+        const stagger = clamp01((bw - b * 0.04) / 0.76);
+        const w = W * easeExpoInOut(stagger);
+        const fromLeft = b % 2 === 0;
+        const bx = fromLeft ? 0 : W - w;
+        ctx.fillStyle = b % 2 === 0 ? LIME : INK;
+        ctx.fillRect(bx, b * bladeH, w + 2, bladeH + 2);
+        // Thick crisp separator stripe
+        ctx.fillStyle = INK;
+        ctx.fillRect(bx, b * bladeH, w + 2, 10);
+      }
+    }
+  }
+
+  // =========================================================================
+  // SCENE 4 RENDERER: 20–32s INSIDE THE MODEL (TOKENS SPLIT, STACK, SHUFFLE, LOCK)
+  // =========================================================================
+  const BASE_TOKENS = [
+    { txt: 'make',  id: '#1304', fill: LIME,  fg: INK },
+    { txt: 'me',    id: '#0502', fill: INK,   fg: PAPER },
+    { txt: 'some',  id: '#1123', fill: LIME,  fg: INK },
+    { txt: 'thing', id: '#2722', fill: INK,   fg: LIME },
+    { txt: 'amaz',  id: '#8841', fill: LIME,  fg: INK },
+    { txt: 'ing',   id: '#0278', fill: INK,   fg: PAPER }
+  ];
+
+  const EXTRA_TOKENS = [
+    { txt: 'Q·K',   id: '#4001', fill: INK,   fg: LIME },
+    { txt: 'ATTN',  id: '#4096', fill: PAPER, fg: INK },
+    { txt: 'VEC+',  id: '#7712', fill: LIME,  fg: INK },
+    { txt: 'SOFT',  id: '#3310', fill: INK,   fg: PAPER },
+    { txt: 'MAX',   id: '#3311', fill: PAPER, fg: INK },
+    { txt: 'MLP',   id: '#5508', fill: INK,   fg: LIME },
+    { txt: 'NORM',  id: '#6024', fill: PAPER, fg: INK },
+    { txt: 'HEAD',  id: '#9012', fill: LIME,  fg: INK },
+    { txt: 'PROB',  id: '#9801', fill: INK,   fg: PAPER },
+    { txt: 'OUT>',  id: '#9999', fill: LIME,  fg: INK }
+  ];
+
+  const ALL_16_TOKENS = [...BASE_TOKENS, ...EXTRA_TOKENS];
+
+  // Deterministic choreographed 4x4 grid permutations on Beats 50..56 (25.0s..28.5s)
+  // Each step maps tokenIndex (0..15) -> slotIndex (0..15)
+  const SHUFFLE_PERMS = [
+    [0,1,2,3, 4,5,6,7, 8,9,10,11, 12,13,14,15],        // 25.0s initial
+    [1,0,3,2, 5,4,7,6, 9,8,11,10, 13,12,15,14],        // 25.5s pair swap
+    [5,0,7,2, 1,4,3,6, 13,8,15,10, 9,12,11,14],        // 26.0s column flip
+    [5,4,7,6, 1,0,3,2, 13,12,15,14, 9,8,11,10],        // 26.5s row slide
+    [0,4,8,12, 1,5,9,13, 2,6,10,14, 3,7,11,15],        // 27.0s matrix transpose!
+    [3,7,11,15, 2,6,10,14, 1,5,9,13, 0,4,8,12],        // 27.5s vertical mirror
+    [0,1,2,3, 4,5,6,7, 8,9,10,11, 12,13,14,15]         // 28.0s lock home!
+  ];
+
+  function getGridSlotPos(slotIdx, lockAmt) {
+    const col = slotIdx % 4;
+    const row = Math.floor(slotIdx / 4);
+    const gap = lerp(24, 0, lockAmt);
+    const cell = lerp(212, 228, lockAmt);
+    const total = cell * 4 + gap * 3;
+    const startX = (W - total) / 2;
+    const startY = 530;
+    return {
+      x: startX + col * (cell + gap) + cell / 2,
+      y: startY + row * (cell + gap) + cell / 2,
+      w: cell,
+      h: cell
+    };
+  }
+
+  function renderScene4(t) {
+    fillBg(PAPER);
+
+    // Subtle mechanical background border rails
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(48, SAFE_TOP + 6, W - 96, SAFE_BOT - SAFE_TOP - 12);
+
+    // Dynamic stage banner cycling every 1.5s
+    const stages = [
+      { t0: 20.0, left: '03 // MODEL CORE', right: 'TOKENIZE' },
+      { t0: 22.0, left: 'SUBWORD SPLIT',    right: '6 TOKENS' },
+      { t0: 23.5, left: 'VECTOR STACK',     right: 'EMBED' },
+      { t0: 25.0, left: 'SELF-ATTENTION',   right: 'SHUFFLE' },
+      { t0: 26.5, left: 'TRANSFORMER 48/96',right: 'WEIGHTS' },
+      { t0: 28.5, left: 'MATRIX LOCKED',    right: '96/96' },
+      { t0: 30.0, left: 'DECODING LOGITS',  right: 'READY' }
+    ];
+    let curStage = stages[0];
+    for (let i = 0; i < stages.length; i++) {
+      if (t >= stages[i].t0) curStage = stages[i];
+    }
+    drawTopBanner(curStage.left, curStage.right, PAPER, INK, LIME, easeExpoOut(clamp01((t - curStage.t0) / 0.25)));
+
+    // --- HUGE LIVE TOKEN COUNTER (y=235..445) ---
+    const cntBoxY = 232;
+    drawBox(64, cntBoxY, W - 128, 212, 20, INK, INK, 8);
+    setFont(30, 900);
+    ctx.fillStyle = PAPER;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ACTIVE TOKEN STREAM', 102, cntBoxY + 46);
+
+    // Pulsing status pill
+    const beatFlip = Math.floor(t / BEAT) % 2 === 0;
+    drawBox(W - 246, cntBoxY + 24, 150, 44, 8, beatFlip ? LIME : PAPER, null, 0);
+    setFont(24, 900);
+    ctx.fillStyle = INK;
+    ctx.textAlign = 'center';
+    ctx.fillText('COMPUTE', W - 171, cntBoxY + 47);
+
+    // Big ticking number
+    const countVal = Math.round(S.s4.tokenCount);
+    setFont(122, 900);
+    ctx.fillStyle = LIME;
+    ctx.textAlign = 'left';
+    ctx.fillText(String(countVal).padStart(4, '0'), 98, cntBoxY + 144);
+
+    setFont(42, 900);
+    ctx.fillStyle = PAPER;
+    ctx.textAlign = 'right';
+    ctx.fillText('TOKENS', W - 98, cntBoxY + 158);
+
+    // --- PHASE A (20.0s – 24.0s): SPLIT SENTENCE INTO 6 BLOCKS -> VERTICAL STACK ---
+    if (t < 24.0) {
+      const slice = S.s4.sliceProg;
+      const sep = S.s4.splitSep;
+      const stack = S.s4.stackProg;
+
+      // Slicer laser blades chopping vertically between words (20.5 - 21.1s)
+      if (slice > 0 && sep < 0.75) {
+        ctx.fillStyle = LIME;
+        for (let b = 0; b < 5; b++) {
+          const bx = 180 + b * 180;
+          const bh = 540 * slice * (1 - sep);
+          ctx.fillRect(bx - 6, 980 - bh / 2, 12, bh);
+        }
+      }
+
+      // Draw the 6 core token blocks morphing from horizontal sentence -> exploded -> tight vertical stack
+      BASE_TOKENS.forEach((tok, i) => {
+        // Horizontal initial arrangement (2 rows of 3 so words are HUGE & phone-readable)
+        const initCol = i % 3;
+        const initRow = Math.floor(i / 3);
+        const hx = 216 + initCol * 324 + (initCol - 1) * 26 * sep;
+        const hy = 860 + initRow * 210 + (initRow === 0 ? -36 : 36) * sep;
+        const hw = 286;
+        const hh = 158;
+
+        // Vertical stack target (tight centered stack of 6 bars)
+        const sx = W / 2 + Math.sin(i * 1.9) * 18 * (1 - stack);
+        const sy = 560 + i * 164;
+        const sw = 820;
+        const sh = 136;
+
+        const cx = lerp(hx, sx, stack);
+        const cy = lerp(hy, sy, stack);
+        const bw = lerp(hw, sw, stack);
+        const bh = lerp(hh, sh, stack);
+
+        // Beat squash punch when stacked
+        const stackHit = (t >= 22.75 && t < 24.0) ? Math.sin(clamp01((t - 22.75) * 8) * Math.PI) * 0.06 : 0;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(1 + stackHit, 1 - stackHit);
+        // Flat hard offset block
+        drawBox(-bw / 2 + 10, -bh / 2 + 10, bw, bh, 16, INK, null, 0);
+        drawBox(-bw / 2, -bh / 2, bw, bh, 16, tok.fill, INK, 8);
+
+        setFont(lerp(56, 62, stack), 900);
+        ctx.fillStyle = tok.fg;
+        ctx.textAlign = stack > 0.5 ? 'left' : 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tok.txt, stack > 0.5 ? -bw / 2 + 44 : 0, stack > 0.5 ? 2 : -14);
+
+        setFont(28, 900);
+        ctx.fillStyle = tok.fill === LIME ? INK : LIME;
+        ctx.textAlign = stack > 0.5 ? 'right' : 'center';
+        ctx.fillText(tok.id, stack > 0.5 ? bw / 2 - 44 : 0, stack > 0.5 ? 4 : 44);
+        ctx.restore();
+      });
+
+      // Attention bus lines connecting stack rows during 22.8 - 24.0s
+      if (stack > 0.85) {
+        const lineAmt = easeExpoOut(invLerp(22.8, 23.4, t));
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(84, 560);
+        ctx.lineTo(84, 560 + 820 * lineAmt);
+        ctx.moveTo(W - 84, 560);
+        ctx.lineTo(W - 84, 560 + 820 * lineAmt);
+        ctx.stroke();
+      }
+    } else {
+      // --- PHASE B (24.0s – 32.0s): 4x4 TOKEN MATRIX SHUFFLE & GRID LOCK ---
+      const gridIn = S.s4.gridProg;
+      const lock = S.s4.lockClamp;
+
+      // Determine active shuffle interpolation between 25.0s and 28.5s (every 0.5s beat!)
+      let permA = SHUFFLE_PERMS[0];
+      let permB = SHUFFLE_PERMS[0];
+      let shufT = 0;
+
+      if (t >= 25.0 && t < 28.5) {
+        const stepFloat = (t - 25.0) / 0.5;
+        const stepIdx = Math.min(SHUFFLE_PERMS.length - 2, Math.floor(stepFloat));
+        permA = SHUFFLE_PERMS[stepIdx];
+        permB = SHUFFLE_PERMS[stepIdx + 1];
+        shufT = easeExpoInOut(clamp01((stepFloat - stepIdx) / 0.72));
+      } else if (t >= 28.5) {
+        permA = SHUFFLE_PERMS[SHUFFLE_PERMS.length - 1];
+        permB = permA;
+        shufT = 1;
+      }
+
+      // Draw all 16 token blocks
+      ALL_16_TOKENS.forEach((tok, idx) => {
+        const posA = getGridSlotPos(permA[idx], lock);
+        const posB = getGridSlotPos(permB[idx], lock);
+
+        // Smooth choreographed swap with slight arc pop
+        const x = lerp(posA.x, posB.x, shufT);
+        const y = lerp(posA.y, posB.y, shufT);
+        const isMoving = permA[idx] !== permB[idx] && shufT > 0.02 && shufT < 0.98;
+        const popScale = isMoving ? 1 + Math.sin(shufT * Math.PI) * 0.14 : 1;
+
+        // Entrance scale for newly added context tokens (indices 6..15)
+        const appear = idx < 6 ? 1 : easeBackOut(clamp01((gridIn - (idx - 6) * 0.04) / 0.55));
+        if (appear <= 0.01) return;
+
+        // During lock scan (29.0s - 31.5s), rows light up bright LIME sequentially!
+        const rowOfSlot = Math.floor(permB[idx] / 4);
+        const scanned = t >= 29.0 && S.s4.scanRow > rowOfSlot;
+        const cellFill = scanned ? LIME : tok.fill;
+        const cellFg = scanned ? INK : tok.fg;
+        const cellRadius = lerp(16, 0, lock);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(appear * popScale, appear * popScale);
+        drawBox(-posA.w / 2, -posA.h / 2, posA.w, posA.h, cellRadius, cellFill, INK, 8);
+
+        setFont(44, 900);
+        ctx.fillStyle = cellFg;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tok.txt, 0, -14);
+
+        setFont(22, 900);
+        ctx.fillStyle = cellFill === INK ? LIME : INK;
+        ctx.fillText(tok.id, 0, 42);
+        ctx.restore();
+      });
+
+      // Heavy clamping lock brackets snapping in at 28.5s
+      if (lock > 0.01) {
+        const gridHalfW = 456;
+        const bOff = lerp(110, 0, lock);
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 14;
+        // Left clamp
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - gridHalfW - bOff + 36, 514);
+        ctx.lineTo(W / 2 - gridHalfW - bOff - 14, 514);
+        ctx.lineTo(W / 2 - gridHalfW - bOff - 14, 1458);
+        ctx.lineTo(W / 2 - gridHalfW - bOff + 36, 1458);
+        // Right clamp
+        ctx.moveTo(W / 2 + gridHalfW + bOff - 36, 514);
+        ctx.lineTo(W / 2 + gridHalfW + bOff + 14, 514);
+        ctx.lineTo(W / 2 + gridHalfW + bOff + 14, 1458);
+        ctx.lineTo(W / 2 + gridHalfW + bOff - 36, 1458);
+        ctx.stroke();
+      }
+    }
+
+    // Bottom Architecture Bar inside 120px safe zone
+    const footY = SAFE_BOT - 122;
+    drawBox(64, footY, W - 128, 92, 14, INK, INK, 6);
+    const barCount = 16;
+    const activeBars = Math.min(barCount, Math.floor(((t - 20.0) / 11.5) * barCount) + 1);
+    for (let i = 0; i < barCount; i++) {
+      const bx = 94 + i * 56;
+      const lit = i < activeBars;
+      ctx.fillStyle = lit ? LIME : PAPER;
+      ctx.fillRect(bx, footY + 24, 38, 44);
+    }
+
+    // --- OPENING SHUTTER WIPE FROM SCENE 3 (20.00s – 20.42s) ---
+    if (S.s4.bladeOpen < 0.999) {
+      const rem = 1 - S.s4.bladeOpen;
+      const bladeH = H / 6;
+      for (let b = 0; b < 6; b++) {
+        const w = W * rem;
+        const fromLeft = b % 2 === 0;
+        const bx = fromLeft ? W - w : 0;
+        ctx.fillStyle = b % 2 === 0 ? LIME : INK;
+        ctx.fillRect(bx, b * bladeH, w + 2, bladeH + 2);
+      }
+    }
+
+    // --- SHAPE MASK WIPE TO SCENE 5 (31.52s – 32.00s): OUT> BLOCK EXPANDS TO FULL LIME ---
+    if (S.s4.wipeOut > 0.001) {
+      const wp = S.s4.wipeOut;
+      const startPos = getGridSlotPos(15, 1); // Bottom-right OUT> block
+      const cx = lerp(startPos.x, W / 2, wp);
+      const cy = lerp(startPos.y, H / 2, wp);
+      const bw = lerp(228, W + 80, wp);
+      const bh = lerp(228, H + 80, wp);
+      ctx.fillStyle = LIME;
+      ctx.fillRect(cx - bw / 2, cy - bh / 2, bw, bh);
+      if (wp < 0.7) {
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 10;
+        ctx.strokeRect(cx - bw / 2, cy - bh / 2, bw, bh);
+      }
+    }
+  }
+
+  // =========================================================================
+  // SCENE 5 RENDERER: 32–44s KINETIC TYPOGRAPHY ANSWER (EVERY WORD ON THE BEAT!)
+  // =========================================================================
+  // 24 words = 6 phrases × 4 beats (exact 0.5s per word, 32.0s to 44.0s)
+  const PHRASES = [
+    {
+      bg: LIME, fg: INK, accent: INK, accentTxt: LIME, wipeDir: 'none',
+      words: [
+        { txt: 'START',  y: 520,  style: 'left',  size: 230 },
+        { txt: 'WITH',   y: 780,  style: 'pop',   size: 210 },
+        { txt: 'ONE',    y: 1030, style: 'right', size: 230 },
+        { txt: 'SPARK.', y: 1320, style: 'pill',  size: 215, shake: true }
+      ]
+    },
+    {
+      bg: INK, fg: PAPER, accent: LIME, accentTxt: INK, wipeDir: 'right',
+      words: [
+        { txt: 'BREAK',  y: 520,  style: 'pop',    size: 220 },
+        { txt: 'THE',    y: 760,  style: 'left',   size: 190 },
+        { txt: 'NOISE.', y: 1020, style: 'strike', size: 225 },
+        { txt: 'BUILD',  y: 1320, style: 'pill',   size: 230, shake: true }
+      ]
+    },
+    {
+      bg: PAPER, fg: INK, accent: LIME, accentTxt: INK, wipeDir: 'up',
+      words: [
+        { txt: 'THE',    y: 490,  style: 'right',  size: 190 },
+        { txt: 'SHAPE.', y: 760,  style: 'box',    size: 220 },
+        { txt: 'BOLD',   y: 1050, style: 'left',   size: 235 },
+        { txt: 'LINES.', y: 1330, style: 'bars',   size: 220, shake: true }
+      ]
+    },
+    {
+      bg: INK, fg: LIME, accent: PAPER, accentTxt: INK, wipeDir: 'left',
+      words: [
+        { txt: 'ZERO',   y: 510,  style: 'pop',    size: 245 },
+        { txt: 'FLUFF.', y: 775,  style: 'right',  size: 220 },
+        { txt: 'TURN',   y: 1050, style: 'rot',    size: 225 },
+        { txt: 'RAW',    y: 1330, style: 'pill',   size: 245, shake: true }
+      ]
+    },
+    {
+      bg: LIME, fg: INK, accent: INK, accentTxt: PAPER, wipeDir: 'expand',
+      words: [
+        { txt: 'THOUGHT', y: 520,  style: 'left',  size: 195 },
+        { txt: 'INTO →',  y: 785,  style: 'pop',   size: 210 },
+        { txt: 'PURE',    y: 1050, style: 'right', size: 235 },
+        { txt: 'MOTION.', y: 1330, style: 'pill',  size: 205, shake: true }
+      ]
+    },
+    {
+      bg: INK, fg: PAPER, accent: LIME, accentTxt: INK, wipeDir: 'down',
+      words: [
+        { txt: 'YOUR',  y: 500,  style: 'pop',  size: 235 },
+        { txt: 'IDEA.', y: 770,  style: 'left', size: 235 },
+        { txt: 'MADE',  y: 1040, style: 'right',size: 235 },
+        { txt: 'REAL.', y: 1335, style: 'pill', size: 245, shake: true }
+      ]
+    }
+  ];
+
+  function drawKineticWord(wObj, age, phrase) {
+    const p = clamp01(age / 0.22);
+    const eOut = easeExpoOut(p);
+    const bOut = easeBackOut(clamp01(age / 0.28));
+
+    let dx = 0, dy = 0, sx = 1, sy = 1, rot = 0;
+
+    if (wObj.style === 'left') {
+      dx = lerp(-1050, 0, eOut);
+      sx = lerp(1.35, 1.0, bOut);
+    } else if (wObj.style === 'right') {
+      dx = lerp(1050, 0, eOut);
+      sx = lerp(1.35, 1.0, bOut);
+    } else if (wObj.style === 'pop' || wObj.style === 'pill' || wObj.style === 'box') {
+      const sc = lerp(0.15, 1.0, bOut);
+      sx = sc;
+      sy = sc;
+    } else if (wObj.style === 'rot') {
+      rot = lerp(-0.45, 0, bOut);
+      const sc = lerp(0.5, 1.0, eOut);
+      sx = sc; sy = sc;
+    } else if (wObj.style === 'strike' || wObj.style === 'bars') {
+      dy = lerp(160, 0, eOut);
+      sy = lerp(1.5, 1.0, bOut);
+    }
+
+    // Subtle continuous drift so no word ever sits frozen!
+    const drift = Math.sin(age * 4.5) * 6;
+
+    ctx.save();
+    ctx.translate(W / 2 + dx, wObj.y + dy + drift);
+    ctx.rotate(rot);
+    ctx.scale(sx, sy);
+
+    if (wObj.style === 'pill') {
+      drawBox(-456, -116, 912, 232, 26, phrase.accent, phrase.fg, 10);
+      drawFitText(wObj.txt, 0, 8, 840, wObj.size, phrase.accentTxt);
+    } else if (wObj.style === 'box') {
+      drawBox(-456, -108, 912, 216, 0, LIME, INK, 12);
+      drawFitText(wObj.txt, 0, 8, 830, wObj.size, INK);
+    } else {
+      drawFitText(wObj.txt, 0, 6, 920, wObj.size, phrase.fg);
+
+      if (wObj.style === 'strike') {
+        const sw = 910 * easeExpoOut(clamp01((age - 0.06) / 0.22));
+        ctx.fillStyle = LIME;
+        ctx.fillRect(-455, -14, sw, 26);
+      }
+      if (wObj.style === 'bars') {
+        const bw = 920 * easeExpoOut(clamp01((age - 0.05) / 0.25));
+        ctx.fillStyle = LIME;
+        ctx.fillRect(-460, 118, bw, 18);
+        ctx.fillStyle = INK;
+        ctx.fillRect(460 - bw, 146, bw, 14);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function renderScene5(t) {
+    const localT = t - 32.0; // 0..12.0s
+    const phraseIdx = Math.min(5, Math.floor(localT / 2.0));
+    const phrase = PHRASES[phraseIdx];
+    const pTime = localT - phraseIdx * 2.0; // 0..2.0s
+    const wordBeatIdx = Math.min(3, Math.floor(pTime / BEAT));
+    const globalWordNum = phraseIdx * 4 + wordBeatIdx + 1;
+
+    // Shape wipe entrance between phrases (0..0.18s)
+    const wipeIn = easeExpoOut(clamp01(pTime / 0.18));
+    if (phraseIdx > 0 && wipeIn < 0.999) {
+      const prev = PHRASES[phraseIdx - 1];
+      fillBg(prev.bg);
+      ctx.save();
+      ctx.beginPath();
+      if (phrase.wipeDir === 'right')  ctx.rect(0, 0, W * wipeIn, H);
+      else if (phrase.wipeDir === 'left')  ctx.rect(W * (1 - wipeIn), 0, W * wipeIn, H);
+      else if (phrase.wipeDir === 'up')    ctx.rect(0, H * (1 - wipeIn), W, H * wipeIn);
+      else if (phrase.wipeDir === 'down')  ctx.rect(0, 0, W, H * wipeIn);
+      else {
+        const ew = W * wipeIn, eh = H * wipeIn;
+        ctx.rect((W - ew) / 2, (H - eh) / 2, ew, eh);
+      }
+      ctx.clip();
+      fillBg(phrase.bg);
+    } else {
+      fillBg(phrase.bg);
+    }
+
+    // Impact shake on beat 3 (4th word of every phrase)
+    const shake = getShake(pTime, 1.50, 0.28, 22);
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
+
+    // Top HUD inside 120px safe zone
+    drawTopBanner(
+      '04 // ANSWER LIVE',
+      `WORD ${String(globalWordNum).padStart(2, '0')}/24`,
+      phrase.bg,
+      phrase.fg,
+      phrase.accent,
+      1
+    );
+
+    // Draw words that have landed up to current beat inside this phrase
+    for (let w = 0; w <= wordBeatIdx; w++) {
+      const wAge = pTime - w * BEAT;
+      drawKineticWord(phrase.words[w], wAge, phrase);
+    }
+
+    // Rhythmic 12-bar stepped equalizer pulsing on EVERY beat at bottom safe zone
+    const beatFrac = (localT % BEAT) / BEAT;
+    const eqPulse = 1 - easeExpoOut(beatFrac);
+    const eqY = SAFE_BOT - 38;
+    const barW = 58;
+    const gap = 20;
+    const startX = (W - (12 * barW + 11 * gap)) / 2;
+    for (let b = 0; b < 12; b++) {
+      const shape = 0.35 + 0.65 * Math.abs(Math.sin((b + 1) * 1.15 + globalWordNum * 0.9));
+      const bh = 24 + (84 * shape * (0.35 + 0.65 * eqPulse));
+      ctx.fillStyle = (b % 3 === 0) ? phrase.accent : phrase.fg;
+      ctx.fillRect(startX + b * (barW + gap), eqY - bh, barW, bh);
+    }
+
+    ctx.restore();
+    if (phraseIdx > 0 && wipeIn < 0.999) {
+      ctx.restore();
+    }
+
+    // --- MATCH-CUT TRANSITION TO SCENE 6 (43.72s – 44.00s): LIME "REAL." SLAB EXPANDS TO FULL SCREEN ---
+    if (t >= 43.72) {
+      const wp = easeExpoInOut(invLerp(43.72, 44.0, t));
+      const slabH = lerp(232, H + 40, wp);
+      const slabW = lerp(912, W + 40, wp);
+      const cy = lerp(1335, H / 2, wp);
+      ctx.fillStyle = LIME;
+      ctx.fillRect(W / 2 - slabW / 2, cy - slabH / 2, slabW, slabH);
+    }
+  }
+
+  // =========================================================================
+  // SCENE 6 RENDERER: 44–54s SPEED-RAMPED MONTAGE OF 6 × 1.5s STAT CARDS
+  // =========================================================================
+  const STAT_CARDS = [
+    { num: 25,    suffix: '',    top: 'CHARACTERS',   bot: 'TYPED BY THUMB',     bg: LIME,  fg: INK,   acc: INK,   wipe: 'vert',   icon: 'key'   },
+    { num: 12480, suffix: ' KM', top: 'FIBER OPTIC',  bot: 'DISTANCE TRAVELLED', bg: INK,   fg: PAPER, acc: LIME,  wipe: 'horiz',  icon: 'arrow' },
+    { num: 4096,  suffix: '',    top: 'TOKENS',       bot: 'PROCESSED LIVE',     bg: PAPER, fg: INK,   acc: LIME,  wipe: 'grid',   icon: 'grid'  },
+    { num: 96,    suffix: '',    top: 'NEURAL LAYERS',bot: 'DEEP ATTENTION',     bg: INK,   fg: LIME,  acc: PAPER, wipe: 'stripes',icon: 'stack' },
+    { num: 380,   suffix: ' MS', top: 'TIME TO',      bot: 'FIRST TOKEN',        bg: LIME,  fg: INK,   acc: INK,   wipe: 'radial', icon: 'clock' },
+    { num: 24,    suffix: '',    top: 'WORDS BACK',   bot: 'ON THE BEAT',        bg: PAPER, fg: INK,   acc: LIME,  wipe: 'bars',   icon: 'bars'  }
+  ];
+
+  function drawStatGraphic(type, p, fg, acc) {
+    ctx.save();
+    ctx.translate(W / 2, 1345);
+    if (type === 'key') {
+      const s = easeBackOut(clamp01(p * 2.5));
+      ctx.scale(s, s);
+      drawBox(-190, -76, 380, 152, 24, INK, INK, 8);
+      drawBox(-190, -88, 380, 152, 24, PAPER, INK, 10);
+      drawFitText('25 KEYS', 0, -8, 310, 68, INK);
+    } else if (type === 'arrow') {
+      const w = 780 * easeExpoOut(clamp01(p * 1.8));
+      ctx.fillStyle = acc;
+      ctx.fillRect(-390, -24, Math.max(0, w - 60), 48);
+      ctx.beginPath();
+      ctx.moveTo(-390 + w - 70, -72);
+      ctx.lineTo(-390 + w + 10, 0);
+      ctx.lineTo(-390 + w - 70, 72);
+      ctx.closePath();
+      ctx.fill();
+    } else if (type === 'grid') {
+      const cell = 56, gap = 14;
+      const tot = cell * 4 + gap * 3;
+      const litN = Math.floor(clamp01(p * 1.7) * 16);
+      for (let i = 0; i < 16; i++) {
+        const c = i % 4, r = Math.floor(i / 4);
+        drawBox(-tot / 2 + c * (cell + gap), -tot / 2 + r * (cell + gap), cell, cell, 6, i <= litN ? acc : fg, INK, 5);
+      }
+    } else if (type === 'stack') {
+      for (let i = 0; i < 6; i++) {
+        const lp = easeExpoOut(clamp01((p * 2.2) - i * 0.1));
+        const w = 720 * lp;
+        ctx.fillStyle = i % 2 === 0 ? LIME : PAPER;
+        ctx.fillRect(-w / 2, -110 + i * 38, w, 24);
+      }
+    } else if (type === 'clock') {
+      ctx.beginPath();
+      ctx.arc(0, 0, 118, 0, Math.PI * 2);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 14;
+      ctx.stroke();
+      const ang = -Math.PI / 2 + clamp01(p * 1.4) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, 98, -Math.PI / 2, ang);
+      ctx.closePath();
+      ctx.fillStyle = INK;
+      ctx.fill();
+    } else if (type === 'bars') {
+      for (let i = 0; i < 8; i++) {
+        const h = 40 + 130 * Math.abs(Math.sin(i * 0.9 + p * 6));
+        ctx.fillStyle = i % 2 === 0 ? INK : LIME;
+        ctx.fillRect(-310 + i * 82, 85 - h, 56, h);
+      }
+    }
+    ctx.restore();
+  }
+
+  function renderStatCard(cardIdx, cTime) {
+    const card = STAT_CARDS[cardIdx];
+    fillBg(card.bg);
+
+    // Speed-ramped motion curve: fast slam-in (0..0.22s), slow glide zoom (0.22..1.25s), fast whip-out (1.25..1.50s)
+    const inP = easeExpoOut(clamp01(cTime / 0.22));
+    const midDrift = lerp(1.0, 1.07, clamp01((cTime - 0.18) / 1.15));
+    const shake = getShake(cTime, 0.0, 0.22, 16);
+
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
+
+    // Top Index Bar inside 120px safe zone
+    drawTopBanner('05 // BY THE NUMBERS', `0${cardIdx + 1}/06`, card.bg, card.fg, card.acc, inP);
+
+    // Hero Center Content with speed-ramped continuous scale
+    ctx.save();
+    ctx.translate(W / 2, 860);
+    ctx.scale(lerp(1.45, 1.0, inP) * midDrift, lerp(0.65, 1.0, inP) * midDrift);
+
+    // Counting-up giant number (0 -> target over first 0.92s)
+    const countP = easeExpoOut(clamp01(cTime / 0.92));
+    const val = Math.round(card.num * countP);
+    const numStr = val.toLocaleString() + card.suffix;
+    drawFitText(numStr, 0, -90, 940, 265, card.fg);
+
+    // Thick divider bar
+    const divW = 860 * easeExpoOut(clamp01(cTime / 0.35));
+    ctx.fillStyle = card.acc;
+    ctx.fillRect(-divW / 2, 74, divW, 18);
+
+    // Bold Phone-Readable Caption
+    drawFitText(card.top, 0, 165, 900, 82, card.fg);
+    drawFitText(card.bot, 0, 250, 900, 62, card.acc === card.bg ? card.fg : card.acc);
+    ctx.restore();
+
+    // Bold Flat Graphic Element
+    drawStatGraphic(card.icon, cTime / 1.5, card.fg, card.acc);
+
+    // Bottom progress strip for this card
+    const barY = SAFE_BOT - 54;
+    ctx.fillStyle = card.fg;
+    ctx.fillRect(64, barY, W - 128, 12);
+    ctx.fillStyle = card.acc === card.fg ? PAPER : card.acc;
+    ctx.fillRect(64, barY, (W - 128) * clamp01(cTime / 1.5), 12);
+
+    ctx.restore();
+
+    // --- OUTGOING SHAPE MASK WIPE BUILT FROM CARD'S GEOMETRY (1.25s – 1.50s) ---
+    if (cTime >= 1.25 && cardIdx < STAT_CARDS.length - 1) {
+      const next = STAT_CARDS[cardIdx + 1];
+      const wp = easeExpoInOut(invLerp(1.25, 1.50, cTime));
+      ctx.fillStyle = next.bg;
+
+      if (card.wipe === 'vert') {
+        const h = H * wp;
+        ctx.fillRect(0, H / 2 - h / 2, W, h);
+      } else if (card.wipe === 'horiz') {
+        ctx.fillRect(0, 0, W * wp, H);
+      } else if (card.wipe === 'grid') {
+        const cols = 4, rows = 4;
+        const cw = W / cols, ch = H / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const s = clamp01((wp - (r + c) * 0.05) / 0.65);
+            ctx.fillRect(c * cw + cw * (1 - s) / 2, r * ch + ch * (1 - s) / 2, cw * s + 2, ch * s + 2);
+          }
+        }
+      } else if (card.wipe === 'stripes') {
+        for (let i = 0; i < 6; i++) {
+          const h = (H / 6) * wp;
+          ctx.fillRect(0, i * (H / 6), W, h + 2);
+        }
+      } else if (card.wipe === 'radial') {
+        ctx.beginPath();
+        ctx.moveTo(W / 2, H / 2);
+        ctx.arc(W / 2, H / 2, 1300, -Math.PI / 2, -Math.PI / 2 + wp * Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  function renderScene6(t) {
+    const localT = t - 44.0; // 0..10.0s
+    if (localT < 9.0) {
+      // 6 quick 1.5s stat cards (44.0s to 53.0s)
+      const cardIdx = Math.min(5, Math.floor(localT / 1.5));
+      const cTime = localT - cardIdx * 1.5;
+      renderStatCard(cardIdx, cTime);
+    } else {
+      // 53.0s – 54.0s (1.0s): Speed-ramped 4-beat flash shutter collapsing into the Map Line!
+      const ft = localT - 9.0; // 0..1.0s
+      const flashes = [
+        { bg: INK,   fg: LIME,  txt: '25 KEYS' },
+        { bg: LIME,  fg: INK,   txt: '12,480 KM' },
+        { bg: PAPER, fg: INK,   txt: '4,096 TOKENS' },
+        { bg: INK,   fg: LIME,  txt: '60 SECONDS' }
+      ];
+      const idx = Math.min(3, Math.floor(ft / 0.25));
+      const subT = (ft - idx * 0.25) / 0.25;
+      const fl = flashes[idx];
+
+      fillBg(fl.bg);
+
+      if (idx < 3) {
+        const sc = lerp(1.35, 0.96, easeExpoOut(subT));
+        ctx.save();
+        ctx.translate(W / 2, H / 2);
+        ctx.scale(sc, sc);
+        drawFitText(fl.txt, 0, 0, 920, 195, fl.fg);
+        ctx.restore();
+      } else {
+        // Final 0.25s collapses cleanly into the single bold lime route line at y=960
+        const collapse = easeExpoInOut(subT);
+        const h = lerp(280, 14, collapse);
+        const w = lerp(920, W, collapse);
+        ctx.fillStyle = LIME;
+        ctx.fillRect(W / 2 - w / 2, H / 2 - h / 2, w, h);
+        if (collapse < 0.55) {
+          drawFitText(fl.txt, W / 2, H / 2, 860, 165, INK);
+        }
+      }
+    }
+  }
+
+  // =========================================================================
+  // SCENE 7 RENDERER: 54–60s END CARD ("One prompt. One minute.") & CLEAN LOOP
+  // =========================================================================
+  // Map-inspired geometric path that draws the perimeter frame of the end card
+  const END_MAP_PATH = [
+    { x: 0,    y: 960 },
+    { x: 240,  y: 960 },
+    { x: 380,  y: 850 },
+    { x: 640,  y: 890 },
+    { x: 830,  y: 770 },
+    { x: 1004, y: 770 }
+  ];
+
+  // Perimeter frame rectangle inside 120px safe margins
+  const FRAME_RECT = { x: 76, y: 200, w: 928, h: 1520 };
+  const FRAME_PTS = [
+    { x: 1004, y: 770 },
+    { x: 1004, y: 200 },
+    { x: 76,   y: 200 },
+    { x: 76,   y: 1720 },
+    { x: 1004, y: 1720 },
+    { x: 1004, y: 770 }
+  ];
+
+  function drawPolylineProgress(pts, prog, color, lineW) {
+    if (prog <= 0.001) return null;
+    let total = 0;
+    const segs = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const d = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+      segs.push({ a: pts[i], b: pts[i + 1], len: d, start: total });
+      total += d;
+    }
+    const target = clamp01(prog) * total;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineW;
+    ctx.lineCap = 'square';
+    ctx.lineJoin = 'miter';
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    let head = pts[0];
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      if (target >= s.start + s.len) {
+        ctx.lineTo(s.b.x, s.b.y);
+        head = s.b;
+      } else if (target > s.start) {
+        const f = (target - s.start) / s.len;
+        head = { x: lerp(s.a.x, s.b.x, f), y: lerp(s.a.y, s.b.y, f) };
+        ctx.lineTo(head.x, head.y);
+        break;
+      }
+    }
+    ctx.stroke();
+    return head;
+  }
+
+  function renderScene7(t) {
+    fillBg(INK);
+
+    const close = S.s7.loopClose; // 0 -> 1 over 58.65s -> 60.0s
+
+    // Collapse transform to loop cleanly back to frame 0's centered ENTER slam!
+    const boxTop = lerp(FRAME_RECT.y, H / 2 - 8, close);
+    const boxBot = lerp(FRAME_RECT.y + FRAME_RECT.h, H / 2 + 8, close);
+    const boxH = Math.max(0, boxBot - boxTop);
+
+    // 1. Initial incoming map-route trace (54.0s – 55.3s, retracts cleanly as frame completes)
+    if (S.s7.frameDraw < 0.85) {
+      const head = drawPolylineProgress(END_MAP_PATH, S.s7.lineDraw, LIME, 14);
+      if (head && S.s7.lineDraw < 0.99) {
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, 18, 0, Math.PI * 2);
+        ctx.fillStyle = LIME;
+        ctx.fill();
+      }
+    }
+
+    // 2. Clip interior typography inside the collapsing frame so it wipes cleanly to 0 at 60.0s!
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(FRAME_RECT.x, boxTop, FRAME_RECT.w, boxH);
+    ctx.clip();
+
+    // Subtle map-node accent dots pulsing in top of frame
+    const beatFrac = (t % BEAT) / BEAT;
+    const dotR = lerp(18, 10, easeExpoOut(beatFrac));
+    if (S.s7.frameDraw > 0.4) {
+      drawBox(128, 256, 360, 56, 8, LIME, null, 0);
+      setFont(28, 900);
+      ctx.fillStyle = INK;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('THE LIFE OF A PROMPT', 308, 286);
+
+      ctx.beginPath();
+      ctx.arc(926, 284, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = LIME;
+      ctx.fill();
+    }
+
+    // Kinetic End Card Typography: "One prompt." / "One minute."
+    const gentleFloat = Math.sin((t - 55.0) * 3.8) * 8;
+
+    // "One"
+    if (S.s7.word1 > 0.01) {
+      ctx.save();
+      ctx.translate(132, 560 + lerp(110, 0, S.s7.word1) + gentleFloat);
+      ctx.scale(lerp(0.6, 1.0, S.s7.word1), lerp(1.4, 1.0, S.s7.word1));
+      drawFitText('One', 0, 0, 820, 178, PAPER, 'left');
+      ctx.restore();
+    }
+
+    // "prompt."
+    if (S.s7.word2 > 0.01) {
+      ctx.save();
+      ctx.translate(132, 742 + lerp(110, 0, S.s7.word2) - gentleFloat * 0.6);
+      ctx.scale(lerp(0.6, 1.0, S.s7.word2), lerp(1.4, 1.0, S.s7.word2));
+      drawFitText('prompt.', 0, 0, 820, 178, PAPER, 'left');
+      ctx.restore();
+    }
+
+    // Thick Lime Horizontal Rule drawn across the center
+    if (S.s7.ruleWipe > 0.01) {
+      const rw = 824 * S.s7.ruleWipe;
+      ctx.fillStyle = LIME;
+      ctx.fillRect(128, 916, rw, 20);
+    }
+
+    // "One"
+    if (S.s7.word3 > 0.01) {
+      ctx.save();
+      ctx.translate(132, 1110 + lerp(110, 0, S.s7.word3) + gentleFloat * 0.7);
+      ctx.scale(lerp(0.6, 1.0, S.s7.word3), lerp(1.4, 1.0, S.s7.word3));
+      drawFitText('One', 0, 0, 820, 178, LIME, 'left');
+      ctx.restore();
+    }
+
+    // "minute."
+    if (S.s7.word4 > 0.01) {
+      ctx.save();
+      ctx.translate(132, 1292 + lerp(110, 0, S.s7.word4) - gentleFloat);
+      ctx.scale(lerp(0.6, 1.0, S.s7.word4), lerp(1.4, 1.0, S.s7.word4));
+      drawFitText('minute.', 0, 0, 820, 178, LIME, 'left');
+      ctx.restore();
+    }
+
+    // Bottom Looping Badge with rotating geometric arc (moves continuously!)
+    if (S.s7.subSlide > 0.01) {
+      const sy = lerp(1760, 1590, S.s7.subSlide);
+      ctx.fillStyle = PAPER;
+      ctx.fillRect(128, sy - 46, 824, 6);
+
+      setFont(34, 900);
+      ctx.fillStyle = PAPER;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('120 BPM // 60S LOOP', 128, sy + 14);
+
+      // Rotating geometric loop icon
+      ctx.save();
+      ctx.translate(910, sy + 14);
+      ctx.rotate((t - 54.0) * 3.2);
+      ctx.strokeStyle = LIME;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(0, 0, 26, 0.4, Math.PI * 1.85);
+      ctx.stroke();
+      ctx.fillStyle = LIME;
+      ctx.beginPath();
+      ctx.moveTo(22, -22);
+      ctx.lineTo(36, -6);
+      ctx.lineTo(14, -4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore(); // End clip
+
+    // 3. Draw Perimeter Frame (drawn by map line, then smoothly contracts into a lime center line priming frame 0!)
+    if (close < 0.01) {
+      const fHead = drawPolylineProgress(FRAME_PTS, S.s7.frameDraw, LIME, 12);
+      // Continuous orbiting beacon traveling along perimeter after frame completes so motion never stops
+      if (S.s7.frameDraw >= 0.99) {
+        const orbProg = ((t - 55.4) * 0.45) % 1;
+        const orbPos = drawPolylineProgress(FRAME_PTS, orbProg, LIME, 0);
+        if (orbPos) {
+          ctx.fillStyle = PAPER;
+          ctx.fillRect(orbPos.x - 14, orbPos.y - 14, 28, 28);
+        }
+      } else if (fHead) {
+        ctx.fillStyle = PAPER;
+        ctx.fillRect(fHead.x - 14, fHead.y - 14, 28, 28);
+      }
+    } else {
+      // Contracting frame shrinks cleanly into center lime priming bar before "ENTER" slams at 0.00s!
+      const cw = lerp(FRAME_RECT.w, 964 * (1 - clamp01((close - 0.72) / 0.28)), close);
+      const ch = Math.max(14, boxH);
+      if (close < 0.96) {
+        ctx.strokeStyle = LIME;
+        ctx.lineWidth = 12;
+        ctx.strokeRect(W / 2 - cw / 2, H / 2 - ch / 2, cw, ch);
+      }
+    }
+  }
+
+  // =========================================================================
+  // MASTER FRAME DISPATCHER
+  // =========================================================================
+  function renderFrame(t) {
+    masterTL.time(t, true);
+
+    if (t < 2.0)       renderScene1(t);
+    else if (t < 10.0) renderScene2(t);
+    else if (t < 20.0) renderScene3(t);
+    else if (t < 32.0) renderScene4(t);
+    else if (t < 44.0) renderScene5(t);
+    else if (t < 54.0) renderScene6(t);
+    else               renderScene7(t);
+  }
+
+  // =========================================================================
+  // DETERMINISTIC 120 BPM WEB AUDIO SYNTHESIZER (KICK, HAT, RISER, GROOVE)
+  // =========================================================================
+  let audioCtx = null;
+  let masterBus = null;
+  let noiseBuffer = null;
+  let schedulerTimer = null;
+  let activeNodes = [];
+
+  // Deterministic PRNG (Mulberry32) for identical noise buffer every run
+  function createNoiseBuffer(ac) {
+    const len = ac.sampleRate * 2;
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    let seed = 0x51A7F00D;
+    for (let i = 0; i < len; i++) {
+      seed = (seed + 0x6D2B79F5) | 0;
+      let z = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      z ^= z + Math.imul(z ^ (z >>> 7), 61 | z);
+      data[i] = (((z ^ (z >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+    }
+    return buf;
+  }
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+      const comp = audioCtx.createDynamicsCompressor();
+      comp.threshold.value = -10;
+      comp.knee.value = 12;
+      comp.ratio.value = 6;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.12;
+
+      masterBus = audioCtx.createGain();
+      masterBus.gain.value = 0.88;
+      masterBus.connect(comp);
+      comp.connect(audioCtx.destination);
+      noiseBuffer = createNoiseBuffer(audioCtx);
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function trackNode(node) {
+    activeNodes.push(node);
+    if (activeNodes.length > 120) {
+      activeNodes = activeNodes.slice(-80);
+    }
+  }
+
+  function stopAllScheduledAudio() {
+    activeNodes.forEach((n) => {
+      try { n.stop(); } catch (_) {}
+      try { n.disconnect(); } catch (_) {}
+    });
+    activeNodes = [];
+  }
+
+  // Punchy 120 BPM Kick
+  function playKick(time, gainAmt = 0.95) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(155, time);
+    osc.frequency.exponentialRampToValueAtTime(42, time + 0.11);
+
+    g.gain.setValueAtTime(gainAmt, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+
+    osc.connect(g);
+    g.connect(masterBus);
+    osc.start(time);
+    osc.stop(time + 0.24);
+    trackNode(osc);
+
+    // Tight click attack
+    const click = audioCtx.createOscillator();
+    const cg = audioCtx.createGain();
+    click.type = 'triangle';
+    click.frequency.setValueAtTime(920, time);
+    click.frequency.exponentialRampToValueAtTime(140, time + 0.018);
+    cg.gain.setValueAtTime(gainAmt * 0.32, time);
+    cg.gain.exponentialRampToValueAtTime(0.001, time + 0.022);
+    click.connect(cg);
+    cg.connect(masterBus);
+    click.start(time);
+    click.stop(time + 0.03);
+    trackNode(click);
+  }
+
+  // Crisp Hi-Hat (closed or accented open)
+  function playHat(time, open = false, gainAmt = 0.28) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.setValueAtTime(open ? 6200 : 8200, time);
+
+    const g = audioCtx.createGain();
+    const dur = open ? 0.14 : 0.042;
+    g.gain.setValueAtTime(gainAmt, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+    src.connect(hp);
+    hp.connect(g);
+    g.connect(masterBus);
+    src.start(time);
+    src.stop(time + dur + 0.01);
+    trackNode(src);
+  }
+
+  // Crisp Flat Snare / Clap on 2 & 4 in high-energy sections
+  function playSnare(time, gainAmt = 0.36) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(1950, time);
+    bp.Q.value = 1.2;
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(gainAmt, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.11);
+
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(masterBus);
+    src.start(time);
+    src.stop(time + 0.12);
+    trackNode(src);
+  }
+
+  // Mechanical Keystroke / Data-Lock Blip
+  function playTick(time, freq = 680, gainAmt = 0.16) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, time);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.45, time + 0.03);
+
+    g.gain.setValueAtTime(gainAmt, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.036);
+
+    osc.connect(g);
+    g.connect(masterBus);
+    osc.start(time);
+    osc.stop(time + 0.04);
+    trackNode(osc);
+  }
+
+  // Percussive Bass Pluck for Kinetic Typography & Montage drive
+  function playBassStab(time, freq = 65.4, gainAmt = 0.34) {
+    const osc = audioCtx.createOscillator();
+    const lp = audioCtx.createBiquadFilter();
+    const g = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, time);
+
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(920, time);
+    lp.frequency.exponentialRampToValueAtTime(160, time + 0.18);
+
+    g.gain.setValueAtTime(gainAmt, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+
+    osc.connect(lp);
+    lp.connect(g);
+    g.connect(masterBus);
+    osc.start(time);
+    osc.stop(time + 0.24);
+    trackNode(osc);
+  }
+
+  // Sweeping Riser before EVERY scene cut (lands razor-sharp on the cut beat!)
+  function playRiser(time, dur = 1.5, gainAmt = 0.36) {
+    // Filtered noise sweep
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuffer;
+    src.loop = true;
+
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 2.8;
+    bp.frequency.setValueAtTime(280, time);
+    bp.frequency.exponentialRampToValueAtTime(6200, time + dur);
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.002, time);
+    g.gain.exponentialRampToValueAtTime(gainAmt, time + dur - 0.03);
+    g.gain.linearRampToValueAtTime(0.0001, time + dur);
+
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(masterBus);
+    src.start(time);
+    src.stop(time + dur + 0.02);
+    trackNode(src);
+
+    // Rising synth pitch sweep
+    const osc = audioCtx.createOscillator();
+    const og = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, time);
+    osc.frequency.exponentialRampToValueAtTime(440, time + dur);
+
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(420, time);
+    lp.frequency.exponentialRampToValueAtTime(2600, time + dur);
+
+    og.gain.setValueAtTime(0.002, time);
+    og.gain.exponentialRampToValueAtTime(gainAmt * 0.45, time + dur - 0.03);
+    og.gain.linearRampToValueAtTime(0.0001, time + dur);
+
+    osc.connect(lp);
+    lp.connect(og);
+    og.connect(masterBus);
+    osc.start(time);
+    osc.stop(time + dur + 0.02);
+    trackNode(osc);
+  }
+
+  // Scene-cut riser trigger steps (16th-note indices inside 480-step loop):
+  // Cuts at: 2.0s (16), 10.0s (80), 20.0s (160), 32.0s (256), 44.0s (352), 54.0s (432), 60.0s (480->0)
+  const RISER_STEPS = {
+    8:   1.0, // 1.0s -> 2.0s cut
+    68:  1.5, // 8.5s -> 10.0s cut
+    148: 1.5, // 18.5s -> 20.0s cut
+    244: 1.5, // 30.5s -> 32.0s cut
+    340: 1.5, // 42.5s -> 44.0s cut
+    420: 1.5, // 52.5s -> 54.0s cut
+    468: 1.5  // 58.5s -> 60.0s loop cut
+  };
+
+  const CUT_STEPS = new Set([0, 16, 80, 160, 256, 352, 432]);
+  const BASS_NOTES = [55.0, 55.0, 65.4, 73.4, 55.0, 65.4, 82.4, 73.4];
+
+  function scheduleStep(loopStep, when) {
+    const t = loopStep * STEP16;
+    const isQuarter = (loopStep % 4) === 0;
+    const isOffEighth = (loopStep % 4) === 2;
+    const beatInBar = Math.floor(loopStep / 4) % 4; // 0, 1, 2, 3
+
+    // Riser before every cut
+    if (RISER_STEPS[loopStep] !== undefined) {
+      playRiser(when, RISER_STEPS[loopStep], 0.36);
+    }
+
+    // Extra impact accent right on every scene cut!
+    if (CUT_STEPS.has(loopStep)) {
+      playKick(when, 1.0);
+      playHat(when, true, 0.34);
+    } else if (isQuarter) {
+      // Steady driving 120 BPM four-on-the-floor kick
+      playKick(when, t >= 54.0 ? 0.72 : 0.90);
+    }
+
+    // Crisp Hi-Hats
+    if (isOffEighth) {
+      playHat(when, false, 0.26);
+    } else if (!isQuarter && t >= 20.0 && t < 54.0) {
+      // Subtle driving 16th-note groove ticks in high-energy middle acts
+      playHat(when, false, 0.11);
+    }
+
+    // Snare/clap on beats 2 & 4 (scenes 3, 4, 5, 6)
+    if (isQuarter && (beatInBar === 1 || beatInBar === 3) && t >= 10.0 && t < 54.0) {
+      playSnare(when, t >= 32.0 ? 0.38 : 0.24);
+    }
+
+    // Scene 2 (2.5s – 8.75s): Keystroke ticks synced on every typed character (every 0.25s = 2 steps)
+    if (t >= 2.50 && t <= 8.75 && (loopStep % 2) === 0) {
+      const charIdx = Math.round((t - 2.50) / 0.25);
+      playTick(when, 580 + (charIdx % 5) * 75, 0.14);
+    }
+    // ENTER key slam at 9.00s
+    if (loopStep === 72) {
+      playBassStab(when, 110, 0.45);
+      playSnare(when, 0.42);
+    }
+
+    // Scene 4 (20.0s – 31.5s): Token shuffle clicks on beats
+    if (t >= 25.0 && t < 29.0 && isQuarter) {
+      playTick(when, 960 + beatInBar * 120, 0.16);
+    }
+
+    // Scene 5 (32.0s – 44.0s): Kinetic word bass stabs on EVERY beat!
+    if (t >= 32.0 && t < 44.0 && isQuarter) {
+      const bIdx = Math.floor((t - 32.0) / BEAT) % BASS_NOTES.length;
+      playBassStab(when, BASS_NOTES[bIdx], 0.36);
+    }
+
+    // Scene 6 (44.0s – 54.0s): Stat card cut punches every 1.5s (12 steps) + rapid finale
+    if (t >= 44.0 && t < 53.0 && ((loopStep - 352) % 12) === 0) {
+      playBassStab(when, 82.4, 0.42);
+      playHat(when, true, 0.30);
+    }
+    if (t >= 53.0 && t < 54.0 && (loopStep % 2) === 0) {
+      playTick(when, 880 + ((loopStep - 424) * 140), 0.24);
+    }
+  }
+
+  // =========================================================================
+  // PLAYBACK ENGINE (AUDIO-CLOCK LOCKED, 60FPS, CLEAN LOOP & RESTART)
+  // =========================================================================
+  let isPlaying = false;
+  let hasStarted = false;
+  let currentTime = 0.0;
+  let playStartAudioTime = 0.0;
+  let nextAbsStep = 0;
+  let stepOriginAudioTime = 0.0;
+  let rafId = null;
+
+  function startSchedulerFrom(timeSec) {
+    if (schedulerTimer) clearInterval(schedulerTimer);
+    // Align next 16th-note step cleanly to audio clock
+    const exactStep = timeSec / STEP16;
+    nextAbsStep = Math.ceil(exactStep - 0.0001);
+    stepOriginAudioTime = playStartAudioTime;
+
+    const lookahead = () => {
+      if (!isPlaying || !audioCtx) return;
+      const horizon = audioCtx.currentTime + 0.12;
+      while (stepOriginAudioTime + nextAbsStep * STEP16 < horizon) {
+        const when = stepOriginAudioTime + nextAbsStep * STEP16;
+        const loopStep = ((nextAbsStep % STEPS_PER_LOOP) + STEPS_PER_LOOP) % STEPS_PER_LOOP;
+        if (when >= audioCtx.currentTime - 0.02) {
+          scheduleStep(loopStep, Math.max(when, audioCtx.currentTime));
+        }
+        nextAbsStep++;
+      }
+    };
+
+    lookahead();
+    schedulerTimer = setInterval(lookahead, 20);
+  }
+
+  function tick() {
+    if (!isPlaying) return;
+    const elapsed = audioCtx.currentTime - playStartAudioTime;
+    currentTime = ((elapsed % DURATION) + DURATION) % DURATION;
+
+    renderFrame(currentTime);
+    progressFill.style.width = `${(currentTime / DURATION) * 100}%`;
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function startFilm() {
+    ensureAudio();
+    overlay.classList.add('hidden');
+    pausePill.classList.remove('visible');
+
+    if (masterBus) {
+      masterBus.gain.cancelScheduledValues(audioCtx.currentTime);
+      masterBus.gain.setValueAtTime(0.88, audioCtx.currentTime);
+    }
+
+    hasStarted = true;
+    isPlaying = true;
+    playStartAudioTime = audioCtx.currentTime - currentTime;
+    startSchedulerFrom(currentTime);
+
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function pauseFilm() {
+    if (!isPlaying) return;
+    isPlaying = false;
+    if (schedulerTimer) clearInterval(schedulerTimer);
+    if (rafId) cancelAnimationFrame(rafId);
+
+    if (audioCtx && masterBus) {
+      masterBus.gain.cancelScheduledValues(audioCtx.currentTime);
+      masterBus.gain.setTargetAtTime(0.0001, audioCtx.currentTime, 0.012);
+    }
+    stopAllScheduledAudio();
+    pausePill.classList.add('visible');
+  }
+
+  function restartFilm() {
+    ensureAudio();
+    if (schedulerTimer) clearInterval(schedulerTimer);
+    if (rafId) cancelAnimationFrame(rafId);
+    stopAllScheduledAudio();
+
+    if (masterBus) {
+      masterBus.gain.cancelScheduledValues(audioCtx.currentTime);
+      masterBus.gain.setValueAtTime(0.88, audioCtx.currentTime);
+    }
+
+    overlay.classList.add('hidden');
+    pausePill.classList.remove('visible');
+
+    hasStarted = true;
+    isPlaying = true;
+    currentTime = 0.0;
+    playStartAudioTime = audioCtx.currentTime;
+    renderFrame(0.0);
+    progressFill.style.width = '0%';
+
+    startSchedulerFrom(0.0);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // =========================================================================
+  // CONTROLS & EVENTS
+  // =========================================================================
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    restartFilm();
+  });
+
+  pausePill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startFilm();
+  });
+
+  canvas.addEventListener('click', () => {
+    if (!hasStarted) return;
+    if (isPlaying) pauseFilm();
+    else startFilm();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault();
+      restartFilm();
+    } else if (e.code === 'Space') {
+      e.preventDefault();
+      if (!hasStarted) restartFilm();
+      else if (isPlaying) pauseFilm();
+      else startFilm();
+    }
+  });
+
+  // Render deterministic frame 0 immediately on load
+  renderFrame(0.0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,4784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boudha Rooftop — Kathmandu Valley</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-deep: #05070d;
+      --ink-primary: rgba(249, 241, 226, 0.92);
+      --ink-secondary: rgba(235, 212, 178, 0.58);
+      --ink-muted: rgba(235, 224, 206, 0.36);
+      --glass-bg: rgba(10, 13, 22, 0.52);
+      --glass-hover: rgba(22, 27, 42, 0.74);
+      --glass-border: rgba(255, 236, 204, 0.16);
+      --glass-active-border: rgba(255, 198, 114, 0.56);
+      --accent-gold: #ffd99c;
+      --accent-amber: #ffaa4c;
+      --ease-cinema: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-deep);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink-primary);
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    /* ===================================================================== */
+    /* LOADING CURTAIN (Brief atmospheric fade-in while procedural baking runs) */
+    /* ===================================================================== */
+    #loading-curtain {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: radial-gradient(circle at 50% 45%, #121728 0%, #05070d 72%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      transition: opacity 1.3s var(--ease-cinema), visibility 1.3s var(--ease-cinema);
+    }
+
+    #loading-curtain.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .loader-emblem {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 204, 128, 0.25);
+      border-top-color: rgba(255, 204, 128, 0.9);
+      animation: spinEmblem 1.6s linear infinite;
+      position: relative;
+    }
+
+    .loader-emblem::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 204, 128, 0.14);
+      border-bottom-color: rgba(255, 168, 76, 0.65);
+      animation: spinEmblem 2.4s linear infinite reverse;
+    }
+
+    @keyframes spinEmblem {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.05rem;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      color: rgba(248, 238, 218, 0.88);
+    }
+
+    .loader-sub {
+      font-size: 0.68rem;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(235, 206, 168, 0.5);
+    }
+
+    /* ===================================================================== */
+    /* ANAMORPHIC 2.39:1 LETTERBOX BARS                                      */
+    /* ===================================================================== */
+    .letterbox {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 0;
+      background: #040508;
+      z-index: 15;
+      pointer-events: none;
+      transition: height 0.75s var(--ease-cinema);
+    }
+    .letterbox.top { top: 0; }
+    .letterbox.bottom { bottom: 0; }
+    body.cinema-bars .letterbox {
+      height: 6.4vh;
+    }
+
+    /* ===================================================================== */
+    /* CINEMATIC FILM-STILL HUD                                              */
+    /* ===================================================================== */
+    .hud-layer {
+      transition: opacity 0.6s var(--ease-cinema);
+    }
+    body.hud-hidden .hud-layer {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hud-title {
+      position: fixed;
+      top: 26px;
+      left: 32px;
+      z-index: 20;
+      pointer-events: none;
+      transition: top 0.75s var(--ease-cinema), opacity 0.6s var(--ease-cinema);
+    }
+    body.cinema-bars .hud-title {
+      top: calc(6.4vh + 18px);
+    }
+
+    .hud-title h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 400;
+      font-size: 1.08rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--ink-primary);
+      text-shadow: 0 2px 18px rgba(0, 0, 0, 0.78);
+    }
+
+    .hud-title .subtitle {
+      margin-top: 6px;
+      font-size: 0.66rem;
+      letter-spacing: 0.23em;
+      text-transform: uppercase;
+      color: var(--ink-secondary);
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
+    }
+
+    .hud-camera-meta {
+      position: fixed;
+      top: 28px;
+      right: 32px;
+      z-index: 20;
+      text-align: right;
+      pointer-events: none;
+      transition: top 0.75s var(--ease-cinema), opacity 0.6s var(--ease-cinema);
+    }
+    body.cinema-bars .hud-camera-meta {
+      top: calc(6.4vh + 20px);
+    }
+
+    .meta-line {
+      font-size: 0.63rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(242, 230, 210, 0.46);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.75);
+      line-height: 1.7;
+    }
+
+    .meta-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ff9c42;
+      box-shadow: 0 0 8px rgba(255, 156, 66, 0.85);
+      margin-right: 7px;
+      vertical-align: middle;
+      animation: pulseDot 2.8s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 0.95; transform: scale(1); }
+      50% { opacity: 0.42; transform: scale(0.84); }
+    }
+
+    /* Bottom Left Camera Shot Pills */
+    .hud-shots {
+      position: fixed;
+      bottom: 26px;
+      left: 32px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: bottom 0.75s var(--ease-cinema), opacity 0.6s var(--ease-cinema);
+    }
+    body.cinema-bars .hud-shots {
+      bottom: calc(6.4vh + 18px);
+    }
+
+    .shot-pill {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 236, 204, 0.13);
+      background: rgba(10, 13, 22, 0.44);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: rgba(240, 230, 214, 0.68);
+      font-size: 0.64rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .shot-pill:hover {
+      background: var(--glass-hover);
+      color: var(--ink-primary);
+      border-color: rgba(255, 216, 158, 0.35);
+    }
+
+    .shot-pill.active {
+      color: var(--accent-gold);
+      border-color: var(--glass-active-border);
+      background: rgba(28, 24, 22, 0.62);
+    }
+
+    /* Bottom Right Control Dock */
+    .hud-controls {
+      position: fixed;
+      bottom: 26px;
+      right: 32px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: bottom 0.75s var(--ease-cinema), opacity 0.6s var(--ease-cinema);
+    }
+    body.cinema-bars .hud-controls {
+      bottom: calc(6.4vh + 18px);
+    }
+
+    .hud-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--ink-primary);
+      font-size: 0.68rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.25s ease, border-color 0.25s ease, transform 0.2s ease, color 0.25s ease;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+    }
+
+    .hud-btn:hover {
+      background: var(--glass-hover);
+      border-color: rgba(255, 218, 160, 0.42);
+      transform: translateY(-1px);
+    }
+
+    .hud-btn:active {
+      transform: translateY(0);
+    }
+
+    .hud-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .hud-btn.active {
+      border-color: var(--glass-active-border);
+      color: var(--accent-gold);
+    }
+
+    .hud-btn.icon-only {
+      padding: 8px 10px;
+    }
+
+    .hud-footer-hint {
+      position: fixed;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      font-size: 0.58rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(235, 224, 206, 0.3);
+      pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.6s ease;
+    }
+
+    /* Subtle floating HUD restore trigger when hidden */
+    #btn-restore-hud {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 25;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    body.hud-hidden #btn-restore-hud {
+      opacity: 0.55;
+      pointer-events: auto;
+    }
+    body.hud-hidden #btn-restore-hud:hover {
+      opacity: 1;
+    }
+
+    @media (max-width: 920px) {
+      .hud-shots { display: none; }
+      .hud-camera-meta { display: none; }
+      .hud-footer-hint { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      .hud-title { top: 16px; left: 16px; }
+      .hud-title h1 { font-size: 0.85rem; }
+      .hud-controls { bottom: 16px; right: 14px; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+      .hud-btn { padding: 7px 11px; font-size: 0.62rem; }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body class="cinema-bars">
+  <!-- Loading Curtain -->
+  <div id="loading-curtain">
+    <div class="loader-emblem"></div>
+    <div class="loader-title">Boudha Rooftop</div>
+    <div class="loader-sub">Sculpting Kathmandu Valley &middot; Procedural Lighting</div>
+  </div>
+
+  <!-- WebGL Viewport -->
+  <div id="canvas-container"></div>
+
+  <!-- Cinema Letterbox Bars -->
+  <div class="letterbox top"></div>
+  <div class="letterbox bottom"></div>
+
+  <!-- Top Left Poetic Title -->
+  <header class="hud-title hud-layer">
+    <h1>Boudha Rooftop</h1>
+    <div class="subtitle">Kathmandu Valley &middot; 27.7215&deg; N, 85.3620&deg; E</div>
+  </header>
+
+  <!-- Top Right Film Still Metadata -->
+  <aside class="hud-camera-meta hud-layer">
+    <div class="meta-line"><span class="meta-dot"></span><span id="meta-mood">NIGHT &middot; MOONLIT HAZE</span></div>
+    <div class="meta-line">40MM ANAMORPHIC &middot; F/2.0 &middot; 35MM GRADE</div>
+  </aside>
+
+  <!-- Bottom Left Curated Film-Still Camera Presets -->
+  <nav class="hud-shots hud-layer" aria-label="Camera Framings">
+    <button class="shot-pill active" data-shot="orbit">01 Orbit</button>
+    <button class="shot-pill" data-shot="terrace">02 Terrace</button>
+    <button class="shot-pill" data-shot="chiya">03 Chiya</button>
+    <button class="shot-pill" data-shot="stupa">04 Boudha</button>
+    <button class="shot-pill" data-shot="flags">05 Lungta</button>
+  </nav>
+
+  <!-- Bottom Right Controls -->
+  <div class="hud-controls hud-layer">
+    <button id="btn-time" class="hud-btn" title="Toggle Night / Golden-Hour Day (T)">
+      <svg id="icon-moon" viewBox="0 0 24 24">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+      <svg id="icon-sun" viewBox="0 0 24 24" style="display:none;">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+      </svg>
+      <span id="label-time">Night</span>
+    </button>
+
+    <button id="btn-wind" class="hud-btn active" title="Cycle Himalayan Breeze (W)">
+      <svg viewBox="0 0 24 24">
+        <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path>
+      </svg>
+      <span id="label-wind">Breeze</span>
+    </button>
+
+    <button id="btn-audio" class="hud-btn" title="Toggle Procedural Kathmandu Soundscape (M)">
+      <svg id="icon-audio-off" viewBox="0 0 24 24">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="23" y1="9" x2="17" y2="15"></line>
+        <line x1="17" y1="9" x2="23" y2="15"></line>
+      </svg>
+      <svg id="icon-audio-on" viewBox="0 0 24 24" style="display:none;">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+      </svg>
+      <span>Sound</span>
+    </button>
+
+    <button id="btn-orbit" class="hud-btn active" title="Pause / Resume Cinematic Orbit (Space)">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"></circle>
+        <polygon id="orbit-play-icon" points="10 8 16 12 10 16 10 8" style="display:none; fill:currentColor;"></polygon>
+        <g id="orbit-pause-icon">
+          <line x1="10" y1="9" x2="10" y2="15"></line>
+          <line x1="14" y1="9" x2="14" y2="15"></line>
+        </g>
+      </svg>
+      <span>Orbit</span>
+    </button>
+
+    <button id="btn-bars" class="hud-btn active icon-only" title="Toggle 2.39:1 Cinema Letterbox (B)">
+      <svg viewBox="0 0 24 24">
+        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+        <line x1="2" y1="8.5" x2="22" y2="8.5"></line>
+        <line x1="2" y1="15.5" x2="22" y2="15.5"></line>
+      </svg>
+    </button>
+
+    <button id="btn-hide-hud" class="hud-btn icon-only" title="Clean Film Still Mode (H)">
+      <svg viewBox="0 0 24 24">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    </button>
+  </div>
+
+  <div class="hud-footer-hint hud-layer">
+    Drag to Explore &middot; Scroll to Zoom &middot; [T] Day/Night &middot; [Space] Orbit &middot; [H] Clean Frame
+  </div>
+
+  <button id="btn-restore-hud" class="hud-btn">Show UI</button>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+    // =========================================================================
+    // SECTION 01: DETERMINISTIC NOISE & MATHEMATICAL UTILITIES
+    // =========================================================================
+    function createRNG(seed = 277215) {
+      let s = seed >>> 0;
+      return () => {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+    }
+
+    const rng = createRNG(85362042);
+
+    function hash2(x, y) {
+      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+
+    function valueNoise2D(x, y) {
+      const xi = Math.floor(x);
+      const yi = Math.floor(y);
+      const xf = x - xi;
+      const yf = y - yi;
+      const u = xf * xf * (3.0 - 2.0 * xf);
+      const v = yf * yf * (3.0 - 2.0 * yf);
+      const a = hash2(xi, yi);
+      const b = hash2(xi + 1, yi);
+      const c = hash2(xi, yi + 1);
+      const d = hash2(xi + 1, yi + 1);
+      return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    }
+
+    function fbm2D(x, y, octaves = 5) {
+      let sum = 0.0;
+      let amp = 0.5;
+      let freq = 1.0;
+      for (let i = 0; i < octaves; i++) {
+        sum += amp * valueNoise2D(x * freq, y * freq);
+        freq *= 2.03;
+        amp *= 0.5;
+      }
+      return sum;
+    }
+
+    function ridgedFbm2D(x, y, octaves = 5) {
+      let sum = 0.0;
+      let amp = 0.55;
+      let freq = 1.0;
+      let weight = 1.0;
+      for (let i = 0; i < octaves; i++) {
+        let n = valueNoise2D(x * freq, y * freq);
+        n = 1.0 - Math.abs(n * 2.0 - 1.0);
+        n *= n * weight;
+        weight = Math.min(1.0, Math.max(0.0, n * 1.8));
+        sum += n * amp;
+        freq *= 2.12;
+        amp *= 0.48;
+      }
+      return sum;
+    }
+
+    function clamp01(v) {
+      return Math.max(0, Math.min(1, v));
+    }
+
+    function smoothstep(edge0, edge1, x) {
+      const t = clamp01((x - edge0) / (edge1 - edge0));
+      return t * t * (3 - 2 * t);
+    }
+
+    // =========================================================================
+    // SECTION 02: WEBGL RENDERER, SCENE, CAMERA & CINEMATIC POST-PROCESSING
+    // =========================================================================
+    const container = document.getElementById('canvas-container');
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      stencil: false
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+
+    // Three-phase atmospheric palette: Night -> Himalayan Dusk -> Golden-Hour Day
+    const NIGHT_FOG_COLOR = new THREE.Color('#0a1020');
+    const DUSK_FOG_COLOR  = new THREE.Color('#3b283f');
+    const DAY_FOG_COLOR   = new THREE.Color('#d8b08a');
+
+    const NIGHT_FOG_DENSITY = 0.0056;
+    const DUSK_FOG_DENSITY  = 0.0050;
+    const DAY_FOG_DENSITY   = 0.0040;
+
+    scene.fog = new THREE.FogExp2(NIGHT_FOG_COLOR.getHex(), NIGHT_FOG_DENSITY);
+
+    const camera = new THREE.PerspectiveCamera(39, window.innerWidth / window.innerHeight, 0.12, 820);
+    camera.position.set(-4.35, 2.28, 5.15);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(1.55, 2.35, -14.5);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.052;
+    controls.maxPolarAngle = Math.PI * 0.515;
+    controls.minPolarAngle = Math.PI * 0.14;
+    controls.minDistance = 2.4;
+    controls.maxDistance = 24.0;
+    controls.enablePan = false;
+    controls.update();
+
+    // Post-Processing Pipeline: Render -> Soft Optical Bloom -> ACES Output -> 35mm Anamorphic Grade
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.54, // strength
+      0.76, // radius
+      0.72  // threshold
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    const AnamorphicFilmPass = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uTime: { value: 0 },
+        uDayFactor: { value: 0 },
+        uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+      },
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        uniform float uDayFactor;
+        uniform vec2 uResolution;
+        varying vec2 vUv;
+
+        float hash12(vec2 p) {
+          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+          p3 += dot(p3, p3.yzx + 33.33);
+          return fract((p3.x + p3.y) * p3.z);
+        }
+
+        void main() {
+          vec2 center = vUv - 0.5;
+          float dist2 = dot(center, center);
+
+          // Microscopic vintage Cooke anamorphic edge dispersion
+          vec2 caOffset = center * dist2 * 0.0042;
+          float r = texture2D(tDiffuse, vUv + caOffset).r;
+          float g = texture2D(tDiffuse, vUv).g;
+          float b = texture2D(tDiffuse, vUv - caOffset).b;
+          vec3 col = vec3(r, g, b);
+
+          // Delicate horizontal anamorphic highlight streak / halation kiss
+          vec2 texel = vec2(1.0 / max(uResolution.x, 1.0), 0.0);
+          vec3 streak = vec3(0.0);
+          for (int i = -4; i <= 4; i++) {
+            float fi = float(i);
+            vec3 s = texture2D(tDiffuse, vUv + texel * fi * 5.2).rgb;
+            float bright = max(0.0, dot(s, vec3(0.33, 0.5, 0.17)) - 0.84);
+            float w = exp(-abs(fi) * 0.42);
+            streak += s * bright * w;
+          }
+          vec3 flareTint = mix(vec3(1.05, 0.86, 0.62), vec3(1.12, 0.92, 0.68), uDayFactor);
+          col += streak * flareTint * mix(0.068, 0.032, uDayFactor);
+
+          // Kodak Vision3 500T (Night) -> Kodak Portra 400 (Golden Day) inspired split-toning
+          float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+          float dusk = sin(uDayFactor * 3.14159);
+
+          vec3 nightShadow = vec3(0.92, 0.97, 1.08);
+          vec3 duskShadow  = vec3(1.02, 0.92, 1.08);
+          vec3 dayShadow   = vec3(0.96, 0.97, 1.03);
+          vec3 shadowTint = mix(nightShadow, dayShadow, uDayFactor);
+          shadowTint = mix(shadowTint, duskShadow, dusk * 0.45);
+
+          vec3 nightHigh = vec3(1.05, 1.00, 0.94);
+          vec3 dayHigh   = vec3(1.06, 1.01, 0.92);
+          vec3 highTint  = mix(nightHigh, dayHigh, uDayFactor);
+
+          col *= mix(shadowTint, highTint, smoothstep(0.06, 0.76, luma));
+
+          // Gentle filmic toe & shoulder S-curve
+          vec3 scurve = col * col * (3.0 - 2.0 * col);
+          col = mix(col, scurve, 0.16);
+
+          // Subtle shadow lift so deepest blacks feel like rich 35mm print rather than digital #000
+          col = mix(vec3(0.012, 0.014, 0.022) * (1.0 - uDayFactor * 0.6), vec3(1.0), col);
+
+          // Natural optical lens vignette
+          vec2 vigPos = center * vec2(1.22, 1.02);
+          float vig = smoothstep(0.95, 0.20, dot(vigPos, vigPos));
+          col *= mix(0.64, 1.0, vig);
+
+          // Fine organic 35mm celluloid film grain (weighted slightly more in mid-shadows)
+          float n1 = hash12(gl_FragCoord.xy + fract(uTime * 23.71) * 140.0);
+          float n2 = hash12(gl_FragCoord.xy * 0.5 + fract(uTime * 11.13) * 90.0);
+          float grain = ((n1 + n2) * 0.5 - 0.5);
+          float grainStrength = mix(0.028, 0.016, uDayFactor);
+          col += grain * grainStrength * (0.35 + 0.65 * (1.0 - luma));
+
+          gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+        }
+      `
+    };
+
+    const filmPass = new ShaderPass(AnamorphicFilmPass);
+    composer.addPass(filmPass);
+
+    // =========================================================================
+    // SECTION 03: SHARED GLOBAL SHADER UNIFORMS
+    // =========================================================================
+    const sharedUniforms = {
+      uTime: { value: 0 },
+      uDayFactor: { value: 0 },
+      uFogColor: { value: NIGHT_FOG_COLOR.clone() },
+      uFogDensity: { value: NIGHT_FOG_DENSITY },
+      uSunDir: { value: new THREE.Vector3(-0.74, 0.21, -0.64).normalize() },
+      uMoonDir: { value: new THREE.Vector3(-0.48, 0.45, -0.75).normalize() },
+      uWindStrength: { value: 1.0 }
+    };
+
+    // =========================================================================
+    // SECTION 04: PROCEDURAL PMREM ENVIRONMENT MAPS (Real Metallic & Wet Speculars)
+    // =========================================================================
+    function createProceduralEnvTexture(isDay) {
+      const w = 512, h = 256;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      if (isDay) {
+        grad.addColorStop(0.00, '#1f4f8e');
+        grad.addColorStop(0.32, '#628db4');
+        grad.addColorStop(0.49, '#f2b880');
+        grad.addColorStop(0.54, '#c78c5e');
+        grad.addColorStop(0.75, '#4b3b30');
+        grad.addColorStop(1.00, '#241c17');
+      } else {
+        grad.addColorStop(0.00, '#070d1e');
+        grad.addColorStop(0.30, '#121d38');
+        grad.addColorStop(0.48, '#2b2538');
+        grad.addColorStop(0.53, '#3b2416');
+        grad.addColorStop(0.75, '#191310');
+        grad.addColorStop(1.00, '#0b0908');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Key light highlight disk (Moon or Golden Sun)
+      const lx = isDay ? w * 0.28 : w * 0.34;
+      const ly = isDay ? h * 0.39 : h * 0.28;
+      const lr = isDay ? 54 : 38;
+      const lg = ctx.createRadialGradient(lx, ly, 2, lx, ly, lr);
+      if (isDay) {
+        lg.addColorStop(0, 'rgba(255, 240, 200, 1.0)');
+        lg.addColorStop(0.4, 'rgba(255, 185, 110, 0.65)');
+        lg.addColorStop(1, 'rgba(255, 160, 80, 0.0)');
+      } else {
+        lg.addColorStop(0, 'rgba(215, 232, 255, 0.95)');
+        lg.addColorStop(0.4, 'rgba(130, 165, 225, 0.4)');
+        lg.addColorStop(1, 'rgba(70, 100, 160, 0.0)');
+      }
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Warm amber rooftop & Boudhanath specular bounce lobes at night
+      if (!isDay) {
+        const lobes = [
+          [w * 0.52, h * 0.51, 44, 'rgba(255, 175, 82, 0.55)'],
+          [w * 0.78, h * 0.55, 36, 'rgba(255, 138, 48, 0.50)'],
+          [w * 0.16, h * 0.54, 30, 'rgba(255, 152, 62, 0.42)']
+        ];
+        for (const [bx, by, br, col] of lobes) {
+          const g = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+          g.addColorStop(0, col);
+          g.addColorStop(1, 'rgba(255, 120, 30, 0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(bx, by, br, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      const eqTex = new THREE.CanvasTexture(c);
+      eqTex.mapping = THREE.EquirectangularReflectionMapping;
+      eqTex.colorSpace = THREE.SRGBColorSpace;
+      return eqTex;
+    }
+
+    const pmremGen = new THREE.PMREMGenerator(renderer);
+    pmremGen.compileEquirectangularShader();
+    const envNightRT = pmremGen.fromEquirectangular(createProceduralEnvTexture(false));
+    const envDayRT   = pmremGen.fromEquirectangular(createProceduralEnvTexture(true));
+    scene.environment = envNightRT.texture;
+    let activeEnvIsDay = false;
+
+    // =========================================================================
+    // SECTION 05: HIGH-RESOLUTION PROCEDURAL CANVAS TEXTURE ATELIER
+    // =========================================================================
+
+    // 5.1 Soft Radial Glow & Smoke Sprite
+    function createSoftRadialTexture(falloff = 2.0) {
+      const s = 128;
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(s, s);
+      for (let y = 0; y < s; y++) {
+        for (let x = 0; x < s; x++) {
+          const dx = (x + 0.5) / s * 2 - 1;
+          const dy = (y + 0.5) / s * 2 - 1;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          const a = Math.pow(clamp01(1.0 - d), falloff);
+          const idx = (y * s + x) * 4;
+          img.data[idx]     = 255;
+          img.data[idx + 1] = 255;
+          img.data[idx + 2] = 255;
+          img.data[idx + 3] = Math.floor(a * 255);
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const softGlowTex = createSoftRadialTexture(2.2);
+    const softMistTex = createSoftRadialTexture(1.55);
+
+    // 5.2 Damp Weathered Kathmandu Terracotta & Slate Rooftop Pavers (1024x1024 PBR set)
+    function createRooftopTilePBR() {
+      const size = 1024;
+      const cCol = document.createElement('canvas');
+      const cBmp = document.createElement('canvas');
+      const cRgh = document.createElement('canvas');
+      cCol.width = cBmp.width = cRgh.width = size;
+      cCol.height = cBmp.height = cRgh.height = size;
+
+      const ctxC = cCol.getContext('2d');
+      const ctxB = cBmp.getContext('2d');
+      const ctxR = cRgh.getContext('2d');
+      const r = createRNG(1001);
+
+      // Aged mortar grout background
+      ctxC.fillStyle = '#3b3530';
+      ctxC.fillRect(0, 0, size, size);
+      ctxB.fillStyle = '#363636';
+      ctxB.fillRect(0, 0, size, size);
+      ctxR.fillStyle = '#e0e0e0';
+      ctxR.fillRect(0, 0, size, size);
+
+      const grid = 10;
+      const tile = size / grid;
+
+      for (let gy = 0; gy < grid; gy++) {
+        for (let gx = 0; gx < grid; gx++) {
+          const x = gx * tile;
+          const y = gy * tile;
+          const v = r();
+          const redBias = r() > 0.3 ? 1 : 0.72;
+          const cr = Math.floor((116 + v * 34) * redBias);
+          const cg = Math.floor((82 + v * 26) * (0.85 + r() * 0.15));
+          const cb = Math.floor((68 + v * 22) * (0.85 + r() * 0.15));
+
+          // Slightly uneven tile chamfer
+          const pad = 3;
+          ctxC.fillStyle = `rgb(${cr},${cg},${cb})`;
+          ctxC.fillRect(x + pad, y + pad, tile - pad * 2, tile - pad * 2);
+
+          // Inner subtle tile gradient
+          const tg = ctxC.createLinearGradient(x, y, x + tile, y + tile);
+          tg.addColorStop(0, 'rgba(255,240,220,0.06)');
+          tg.addColorStop(1, 'rgba(15,10,8,0.12)');
+          ctxC.fillStyle = tg;
+          ctxC.fillRect(x + pad, y + pad, tile - pad * 2, tile - pad * 2);
+
+          // Subtle hairline crack on occasional tiles
+          if (r() > 0.78) {
+            ctxC.strokeStyle = 'rgba(25,20,18,0.34)';
+            ctxC.lineWidth = 1.5;
+            ctxC.beginPath();
+            ctxC.moveTo(x + pad + r() * tile * 0.4, y + pad);
+            ctxC.lineTo(x + tile * 0.5 + (r() - 0.5) * 18, y + tile * 0.5);
+            ctxC.lineTo(x + tile * 0.3 + r() * tile * 0.5, y + tile - pad);
+            ctxC.stroke();
+          }
+
+          const bv = Math.floor(170 + r() * 48);
+          ctxB.fillStyle = `rgb(${bv},${bv},${bv})`;
+          ctxB.fillRect(x + pad, y + pad, tile - pad * 2, tile - pad * 2);
+
+          const rv = Math.floor(165 + r() * 55);
+          ctxR.fillStyle = `rgb(${rv},${rv},${rv})`;
+          ctxR.fillRect(x + pad, y + pad, tile - pad * 2, tile - pad * 2);
+        }
+      }
+
+      // Monsoon moss & soot weathering near mortar joints
+      for (let i = 0; i < 900; i++) {
+        const px = r() * size;
+        const py = r() * size;
+        const rad = 6 + r() * 44;
+        const type = r();
+        const grad = ctxC.createRadialGradient(px, py, 0, px, py, rad);
+        if (type < 0.55) {
+          grad.addColorStop(0, 'rgba(24, 20, 18, 0.16)');
+        } else if (type < 0.78) {
+          grad.addColorStop(0, 'rgba(42, 54, 34, 0.14)'); // Subtle monsoon moss
+        } else {
+          grad.addColorStop(0, 'rgba(182, 162, 140, 0.08)');
+        }
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctxC.fillStyle = grad;
+        ctxC.beginPath();
+        ctxC.arc(px, py, rad, 0, Math.PI * 2);
+        ctxC.fill();
+      }
+
+      // Evening dew / damp rainwater puddles (darker albedo + glossy low roughness so lanterns reflect!)
+      for (let i = 0; i < 14; i++) {
+        const px = r() * size;
+        const py = r() * size;
+        const rx = 38 + r() * 88;
+        const ry = 28 + r() * 72;
+
+        ctxC.save();
+        ctxC.translate(px, py);
+        ctxC.scale(1, ry / rx);
+        const cg = ctxC.createRadialGradient(0, 0, rx * 0.1, 0, 0, rx);
+        cg.addColorStop(0, 'rgba(16, 14, 14, 0.28)');
+        cg.addColorStop(0.75, 'rgba(18, 16, 16, 0.12)');
+        cg.addColorStop(1, 'rgba(18, 16, 16, 0.0)');
+        ctxC.fillStyle = cg;
+        ctxC.beginPath();
+        ctxC.arc(0, 0, rx, 0, Math.PI * 2);
+        ctxC.fill();
+        ctxC.restore();
+
+        ctxR.save();
+        ctxR.translate(px, py);
+        ctxR.scale(1, ry / rx);
+        const rg = ctxR.createRadialGradient(0, 0, rx * 0.15, 0, 0, rx);
+        rg.addColorStop(0, 'rgba(26, 26, 26, 0.92)'); // Very glossy wet puddle
+        rg.addColorStop(0.65, 'rgba(48, 48, 48, 0.55)');
+        rg.addColorStop(1, 'rgba(48, 48, 48, 0.0)');
+        ctxR.fillStyle = rg;
+        ctxR.beginPath();
+        ctxR.arc(0, 0, rx, 0, Math.PI * 2);
+        ctxR.fill();
+        ctxR.restore();
+      }
+
+      const wrap = (canvas, isSRGB) => {
+        const t = new THREE.CanvasTexture(canvas);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(3.8, 3.4);
+        t.anisotropy = 8;
+        if (isSRGB) t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      };
+
+      return {
+        map: wrap(cCol, true),
+        bumpMap: wrap(cBmp, false),
+        roughnessMap: wrap(cRgh, false)
+      };
+    }
+
+    // 5.3 Peeling Lime Plaster & Traditional Nepali Red Brick (1024x1024)
+    function createPlasterBrickPBR() {
+      const size = 1024;
+      const cCol = document.createElement('canvas');
+      const cBmp = document.createElement('canvas');
+      cCol.width = cBmp.width = size;
+      cCol.height = cBmp.height = size;
+      const ctxC = cCol.getContext('2d');
+      const ctxB = cBmp.getContext('2d');
+      const r = createRNG(1002);
+
+      // Aged ochre-cream stucco plaster
+      ctxC.fillStyle = '#9f8d77';
+      ctxC.fillRect(0, 0, size, size);
+      ctxB.fillStyle = '#b4b4b4';
+      ctxB.fillRect(0, 0, size, size);
+
+      // Hand-troweled texture variation
+      for (let i = 0; i < 1400; i++) {
+        const x = r() * size, y = r() * size, rad = 8 + r() * 44;
+        ctxC.fillStyle = r() > 0.5 ? 'rgba(64, 48, 36, 0.065)' : 'rgba(226, 210, 186, 0.06)';
+        ctxC.beginPath();
+        ctxC.arc(x, y, rad, 0, Math.PI * 2);
+        ctxC.fill();
+
+        ctxB.fillStyle = r() > 0.5 ? 'rgba(90,90,90,0.08)' : 'rgba(210,210,210,0.08)';
+        ctxB.beginPath();
+        ctxB.arc(x, y, rad * 0.7, 0, Math.PI * 2);
+        ctxB.fill();
+      }
+
+      // Exposed patches of authentic thin Nepali fired red brick (Dachi Appa)
+      const rows = 28, cols = 12;
+      const bh = size / rows, bw = size / cols;
+      for (let p = 0; p < 7; p++) {
+        const px = r() * size, py = r() * size;
+        const pr = 55 + r() * 95;
+        ctxC.save();
+        ctxB.save();
+
+        // Organic irregular jagged plaster peel polygon
+        const path = new Path2D();
+        const verts = 14;
+        for (let k = 0; k < verts; k++) {
+          const a = (k / verts) * Math.PI * 2;
+          const rad = pr * (0.7 + r() * 0.48);
+          const vx = px + Math.cos(a) * rad;
+          const vy = py + Math.sin(a) * rad;
+          if (k === 0) path.moveTo(vx, vy); else path.lineTo(vx, vy);
+        }
+        path.closePath();
+
+        // Plaster lip shadow
+        ctxC.strokeStyle = 'rgba(34, 24, 18, 0.48)';
+        ctxC.lineWidth = 7;
+        ctxC.stroke(path);
+
+        ctxC.clip(path);
+        ctxB.clip(path);
+
+        ctxC.fillStyle = '#52463d';
+        ctxC.fillRect(0, 0, size, size);
+        ctxB.fillStyle = '#383838';
+        ctxB.fillRect(0, 0, size, size);
+
+        for (let row = 0; row < rows; row++) {
+          const off = (row % 2) * (bw * 0.5);
+          for (let col = -1; col <= cols; col++) {
+            const bx = col * bw + off;
+            const by = row * bh;
+            const br = Math.floor(134 + r() * 38);
+            const bg = Math.floor(58 + r() * 22);
+            const bb = Math.floor(42 + r() * 16);
+            ctxC.fillStyle = `rgb(${br},${bg},${bb})`;
+            ctxC.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+            ctxB.fillStyle = '#929292';
+            ctxB.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+          }
+        }
+        ctxC.restore();
+        ctxB.restore();
+      }
+
+      // Rainwater drip streaks down from coping stone
+      for (let i = 0; i < 85; i++) {
+        const x = r() * size;
+        const h = 80 + r() * 480;
+        const w = 3 + r() * 14;
+        const g = ctxC.createLinearGradient(x, 0, x, h);
+        g.addColorStop(0, 'rgba(32, 28, 22, 0.34)');
+        g.addColorStop(0.5, 'rgba(42, 48, 30, 0.14)');
+        g.addColorStop(1, 'rgba(32, 28, 22, 0)');
+        ctxC.fillStyle = g;
+        ctxC.fillRect(x, 0, w, h);
+      }
+
+      const map = new THREE.CanvasTexture(cCol);
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.repeat.set(3.2, 1.0);
+      map.anisotropy = 8;
+      map.colorSpace = THREE.SRGBColorSpace;
+
+      const bumpMap = new THREE.CanvasTexture(cBmp);
+      bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+      bumpMap.repeat.set(3.2, 1.0);
+
+      return { map, bumpMap };
+    }
+
+    // 5.4 Dark Aged Newari Carved Sal Wood Texture (512x512)
+    function createCarvedWoodPBR() {
+      const s = 512;
+      const cCol = document.createElement('canvas');
+      const cBmp = document.createElement('canvas');
+      cCol.width = cBmp.width = s;
+      cCol.height = cBmp.height = s;
+      const ctxC = cCol.getContext('2d');
+      const ctxB = cBmp.getContext('2d');
+      const r = createRNG(1003);
+
+      ctxC.fillStyle = '#2d1c13';
+      ctxC.fillRect(0, 0, s, s);
+      ctxB.fillStyle = '#808080';
+      ctxB.fillRect(0, 0, s, s);
+
+      for (let y = 0; y < s; y += 2) {
+        const v = Math.floor(32 + r() * 28);
+        ctxC.fillStyle = `rgba(${v + 24}, ${v + 4}, ${Math.floor(v * 0.62)}, 0.45)`;
+        ctxC.fillRect(0, y, s, 1 + r() * 2.5);
+        const bv = Math.floor(110 + r() * 40);
+        ctxB.fillStyle = `rgb(${bv},${bv},${bv})`;
+        ctxB.fillRect(0, y, s, 2);
+      }
+
+      // Subtle carved diamond/lotus horizontal relief bands
+      ctxC.strokeStyle = 'rgba(18, 10, 6, 0.5)';
+      ctxB.strokeStyle = '#303030';
+      ctxC.lineWidth = 3;
+      ctxB.lineWidth = 4;
+      for (let band = 0; band < 4; band++) {
+        const by = 64 + band * 128;
+        ctxC.beginPath(); ctxC.moveTo(0, by); ctxC.lineTo(s, by); ctxC.stroke();
+        ctxB.beginPath(); ctxB.moveTo(0, by); ctxB.lineTo(s, by); ctxB.stroke();
+      }
+
+      const map = new THREE.CanvasTexture(cCol);
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.colorSpace = THREE.SRGBColorSpace;
+      const bumpMap = new THREE.CanvasTexture(cBmp);
+      bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+      return { map, bumpMap };
+    }
+
+    // 5.5 Traditional Nepali Terracotta Jhingati Roof Tile Shingle Texture
+    function createJhingatiTilePBR() {
+      const s = 512;
+      const cCol = document.createElement('canvas');
+      const cBmp = document.createElement('canvas');
+      cCol.width = cBmp.width = s;
+      cCol.height = cBmp.height = s;
+      const ctxC = cCol.getContext('2d');
+      const ctxB = cBmp.getContext('2d');
+      const r = createRNG(1004);
+
+      ctxC.fillStyle = '#381c14';
+      ctxC.fillRect(0, 0, s, s);
+      ctxB.fillStyle = '#303030';
+      ctxB.fillRect(0, 0, s, s);
+
+      const rows = 14, cols = 12;
+      const rw = s / cols, rh = s / rows;
+
+      for (let row = 0; row < rows; row++) {
+        const y = row * rh;
+        const off = (row % 2) * (rw * 0.5);
+        for (let col = -1; col <= cols; col++) {
+          const x = col * rw + off;
+          const v = r();
+          const cr = Math.floor(96 + v * 46);
+          const cg = Math.floor(42 + v * 22);
+          const cb = Math.floor(28 + v * 16);
+
+          const tg = ctxC.createLinearGradient(x, y, x + rw, y + rh);
+          tg.addColorStop(0, `rgb(${cr + 16},${cg + 8},${cb + 5})`);
+          tg.addColorStop(0.55, `rgb(${cr},${cg},${cb})`);
+          tg.addColorStop(1, `rgb(${Math.max(20, cr - 28)},${Math.max(12, cg - 14)},${Math.max(10, cb - 10)})`);
+
+          ctxC.fillStyle = tg;
+          ctxC.beginPath();
+          ctxC.roundRect(x + 2, y + 1, rw - 4, rh + 6, [2, 2, 10, 10]);
+          ctxC.fill();
+
+          // Moss speck on occasional old roof tiles
+          if (r() > 0.72) {
+            ctxC.fillStyle = 'rgba(42, 62, 32, 0.35)';
+            ctxC.beginPath();
+            ctxC.arc(x + rw * 0.5, y + rh * 0.6, 5 + r() * 8, 0, Math.PI * 2);
+            ctxC.fill();
+          }
+
+          const bg = ctxB.createLinearGradient(x, y, x, y + rh);
+          bg.addColorStop(0, '#c0c0c0');
+          bg.addColorStop(0.85, '#efefef');
+          bg.addColorStop(1, '#303030');
+          ctxB.fillStyle = bg;
+          ctxB.beginPath();
+          ctxB.roundRect(x + 2, y + 1, rw - 4, rh + 4, [2, 2, 10, 10]);
+          ctxB.fill();
+        }
+      }
+
+      const map = new THREE.CanvasTexture(cCol);
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.repeat.set(2.5, 2.2);
+      map.colorSpace = THREE.SRGBColorSpace;
+      const bumpMap = new THREE.CanvasTexture(cBmp);
+      bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+      bumpMap.repeat.set(2.5, 2.2);
+      return { map, bumpMap };
+    }
+
+    // 5.6 Hand-Woven Tibetan Wool Rug Texture (Key-Fret Border & Medallion)
+    function createTibetanRugTexture() {
+      const s = 512;
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const ctx = c.getContext('2d');
+      const r = createRNG(1005);
+
+      // Deep madder crimson base
+      ctx.fillStyle = '#5e1c1a';
+      ctx.fillRect(0, 0, s, s);
+
+      // Outer indigo & gold key-fret border
+      ctx.strokeStyle = '#1e2f4d';
+      ctx.lineWidth = 42;
+      ctx.strokeRect(21, 21, s - 42, s - 42);
+
+      ctx.strokeStyle = '#c89236';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(48, 48, s - 96, s - 96);
+      ctx.strokeRect(62, 62, s - 124, s - 124);
+
+      // Geometric Tibetan meander ticks around border
+      ctx.fillStyle = '#d4a246';
+      for (let i = 52; i < s - 52; i += 24) {
+        ctx.fillRect(i, 16, 12, 10);
+        ctx.fillRect(i, s - 26, 12, 10);
+        ctx.fillRect(16, i, 10, 12);
+        ctx.fillRect(s - 26, i, 10, 12);
+      }
+
+      // Central lotus medallion
+      ctx.save();
+      ctx.translate(s / 2, s / 2);
+      ctx.fillStyle = '#203252';
+      ctx.beginPath();
+      ctx.arc(0, 0, 118, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (let i = 0; i < 12; i++) {
+        ctx.rotate((Math.PI * 2) / 12);
+        ctx.fillStyle = i % 2 === 0 ? '#cc8e32' : '#d8c49e';
+        ctx.beginPath();
+        ctx.ellipse(0, -68, 18, 36, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#7c241e';
+      ctx.beginPath();
+      ctx.arc(0, 0, 42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e0b048';
+      ctx.beginPath();
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Woven wool yarn texture noise
+      for (let y = 0; y < s; y += 3) {
+        ctx.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.08})`;
+        ctx.fillRect(0, y, s, 1);
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // 5.7 Nepali Woven Dhaka Cushion Pattern Texture
+    function createDhakaFabricTexture(primary, accent) {
+      const s = 256;
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = primary;
+      ctx.fillRect(0, 0, s, s);
+
+      // Traditional geometric diamond-weave Dhaka bands
+      const step = 32;
+      for (let y = 0; y < s; y += step) {
+        for (let x = 0; x < s; x += step) {
+          ctx.fillStyle = accent;
+          ctx.beginPath();
+          ctx.moveTo(x + step / 2, y + 3);
+          ctx.lineTo(x + step - 3, y + step / 2);
+          ctx.lineTo(x + step / 2, y + step - 3);
+          ctx.lineTo(x + 3, y + step / 2);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = '#e8d8b8';
+          ctx.beginPath();
+          ctx.moveTo(x + step / 2, y + 10);
+          ctx.lineTo(x + step - 10, y + step / 2);
+          ctx.lineTo(x + step / 2, y + step - 10);
+          ctx.lineTo(x + 10, y + step / 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 2);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // 5.8 Painted Tibetan Chogtse Tea Table Apron Texture
+    function createTibetanTablePanelTexture() {
+      const w = 512, h = 160;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#5e1a16';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = '#d49a35';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(8, 8, w - 16, h - 16);
+
+      // Painted golden lotus blossoms & scrolling clouds
+      for (let i = 0; i < 3; i++) {
+        const cx = 96 + i * 160;
+        const cy = h * 0.52;
+        ctx.save();
+        ctx.translate(cx, cy);
+        for (let p = 0; p < 8; p++) {
+          ctx.rotate((Math.PI * 2) / 8);
+          ctx.fillStyle = p % 2 === 0 ? '#df9e38' : '#2d6858';
+          ctx.beginPath();
+          ctx.ellipse(0, -24, 9, 20, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#f2c868';
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // 5.9 Embossed Brass Prayer Wheel (Mani Cylinder) Script Texture
+    function createPrayerWheelTexture() {
+      const w = 512, h = 256;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+
+      // Aged hammered brass & copper patina
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#8d5d22');
+      g.addColorStop(0.2, '#d4a142');
+      g.addColorStop(0.5, '#b87f2a');
+      g.addColorStop(0.8, '#d4a142');
+      g.addColorStop(1, '#784c18');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+
+      // Crimson & dark bronze relief bands
+      ctx.fillStyle = '#5e1a14';
+      ctx.fillRect(0, 26, w, 24);
+      ctx.fillRect(0, h - 50, w, 24);
+
+      // Stylized Ranjana / Tibetan Mani mantra glyphs embossed along cylinder
+      ctx.strokeStyle = '#f8d678';
+      ctx.fillStyle = '#f8d678';
+      ctx.lineWidth = 4;
+      for (let i = 0; i < 6; i++) {
+        const x = 32 + i * 82;
+        ctx.fillRect(x, 82, 56, 7);
+        ctx.beginPath();
+        ctx.arc(x + 28, 128, 22, 0, Math.PI * 1.65);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 12, 90);
+        ctx.lineTo(x + 12, 168);
+        ctx.moveTo(x + 42, 90);
+        ctx.lineTo(x + 42, 152);
+        ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // 5.10 Boudhanath Whitewashed Dome (2048x1024) with Authentic Saffron Lotus-Petal Drip Wash
+    function createStupaDomePBR() {
+      const w = 2048, h = 1024;
+      const cCol = document.createElement('canvas');
+      const cBmp = document.createElement('canvas');
+      cCol.width = cBmp.width = w;
+      cCol.height = cBmp.height = h;
+      const ctx = cCol.getContext('2d');
+      const ctxB = cBmp.getContext('2d');
+      const r = createRNG(1006);
+
+      // Chalky warm limewash plaster base
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0.00, '#f5efe2');
+      bgGrad.addColorStop(0.55, '#eae3d6');
+      bgGrad.addColorStop(0.85, '#dcd4c5');
+      bgGrad.addColorStop(1.00, '#c6bdb0');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      ctxB.fillStyle = '#909090';
+      ctxB.fillRect(0, 0, w, h);
+
+      // Hand-plastered limewash mottling
+      for (let i = 0; i < 1600; i++) {
+        const x = r() * w, y = r() * h, rad = 14 + r() * 64;
+        ctx.fillStyle = r() > 0.5 ? 'rgba(176, 162, 142, 0.065)' : 'rgba(255, 252, 246, 0.08)';
+        ctx.beginPath();
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctxB.fillStyle = r() > 0.5 ? 'rgba(120,120,120,0.08)' : 'rgba(170,170,170,0.08)';
+        ctxB.beginPath();
+        ctxB.arc(x, y, rad * 0.8, 0, Math.PI * 2);
+        ctxB.fill();
+      }
+
+      // Iconic Boudhanath poured saffron-ochre double lotus garland around upper shoulder
+      const petals = 28;
+      const pw = w / petals;
+      const crownY = h * 0.14;
+
+      const crownGrad = ctx.createLinearGradient(0, 0, 0, crownY + 45);
+      crownGrad.addColorStop(0.0, 'rgba(220, 152, 42, 0.92)');
+      crownGrad.addColorStop(0.7, 'rgba(226, 164, 52, 0.78)');
+      crownGrad.addColorStop(1.0, 'rgba(226, 164, 52, 0.0)');
+      ctx.fillStyle = crownGrad;
+      ctx.fillRect(0, 0, w, crownY + 45);
+
+      for (let i = 0; i < petals; i++) {
+        const cx = (i + 0.5) * pw;
+
+        // Warm saffron translucent petal fill
+        const pg = ctx.createRadialGradient(cx, crownY + 8, 4, cx, crownY + 26, pw * 0.64);
+        pg.addColorStop(0.0, 'rgba(228, 164, 48, 0.74)');
+        pg.addColorStop(0.68, 'rgba(212, 140, 36, 0.45)');
+        pg.addColorStop(1.0, 'rgba(212, 140, 36, 0.0)');
+        ctx.fillStyle = pg;
+        ctx.beginPath();
+        ctx.arc(cx, crownY + 12, pw * 0.52, 0, Math.PI);
+        ctx.fill();
+
+        // Bold outer & inner hand-poured saffron lotus scallop arches
+        ctx.strokeStyle = 'rgba(198, 126, 26, 0.84)';
+        ctx.lineWidth = 7.5;
+        ctx.beginPath();
+        ctx.arc(cx, crownY + 8, pw * 0.48, 0.05, Math.PI - 0.05);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(224, 162, 52, 0.62)';
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.arc(cx, crownY + 34, pw * 0.47, 0.10, Math.PI - 0.10);
+        ctx.stroke();
+
+        // Delicate saffron drips cascading naturally down the chalk dome
+        for (let d = 0; d < 2; d++) {
+          const dx = cx + (d - 0.5) * pw * 0.24;
+          const dLen = 48 + r() * 125;
+          const dg = ctx.createLinearGradient(dx, crownY + pw * 0.46, dx, crownY + pw * 0.46 + dLen);
+          dg.addColorStop(0, 'rgba(210, 146, 40, 0.38)');
+          dg.addColorStop(1, 'rgba(210, 146, 40, 0.0)');
+          ctx.fillStyle = dg;
+          ctx.fillRect(dx - 3.5, crownY + pw * 0.44, 7, dLen);
+        }
+      }
+
+      // Subtle vertical weathering stains near bottom drum
+      for (let i = 0; i < 120; i++) {
+        const x = r() * w;
+        const hS = 140 + r() * 260;
+        const g = ctx.createLinearGradient(x, h - hS, x, h);
+        g.addColorStop(0, 'rgba(72, 64, 54, 0)');
+        g.addColorStop(1, 'rgba(72, 64, 54, 0.16)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, h - hS, 8 + r() * 22, hS);
+      }
+
+      const map = new THREE.CanvasTexture(cCol);
+      map.wrapS = THREE.RepeatWrapping;
+      map.anisotropy = 8;
+      map.colorSpace = THREE.SRGBColorSpace;
+
+      const bumpMap = new THREE.CanvasTexture(cBmp);
+      bumpMap.wrapS = THREE.RepeatWrapping;
+
+      return { map, bumpMap };
+    }
+
+    // 5.11 Boudhanath Harmika — Crisp 1024x1024 All-Seeing Buddha Eyes & Crown Frieze
+    function createBuddhaEyesTexture() {
+      const s = 1024;
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const ctx = c.getContext('2d');
+
+      // Aged white limewash plaster background
+      const bg = ctx.createLinearGradient(0, 0, 0, s);
+      bg.addColorStop(0, '#f5efe2');
+      bg.addColorStop(0.7, '#eae1cf');
+      bg.addColorStop(1, '#d8ccb6');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, s, s);
+
+      // Ornate gold vertical pilasters
+      ctx.fillStyle = '#cf9a38';
+      ctx.fillRect(0, 0, 28, s);
+      ctx.fillRect(s - 28, 0, 28, s);
+      ctx.fillStyle = '#8c2218';
+      ctx.fillRect(28, 0, 8, s);
+      ctx.fillRect(s - 36, 0, 8, s);
+
+      // Rich top ornamental frieze (Five Dhyani Buddha crown motifs)
+      ctx.fillStyle = '#8f1f17';
+      ctx.fillRect(0, 0, s, 142);
+      ctx.fillStyle = '#e0aa3e';
+      ctx.fillRect(0, 0, s, 18);
+      ctx.fillRect(0, 128, s, 22);
+
+      for (let i = 0; i < 9; i++) {
+        const mx = 74 + i * 110;
+        ctx.fillStyle = '#e8b950';
+        ctx.beginPath();
+        ctx.arc(mx, 74, 30, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#6c140e';
+        ctx.beginPath();
+        ctx.arc(mx, 74, 17, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#f8d882';
+        ctx.beginPath();
+        ctx.arc(mx, 74, 7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Bottom decorative cornice band
+      ctx.fillStyle = '#d49d38';
+      ctx.fillRect(0, s - 46, s, 46);
+      ctx.fillStyle = '#841d15';
+      ctx.fillRect(0, s - 26, s, 26);
+
+      // Draw each serene, compassionate Buddha Eye
+      function drawBuddhaEye(cx, cy, flip) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(flip, 1);
+
+        // Delicate crimson-gold upper brow aura
+        ctx.strokeStyle = '#a42c1d';
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-162, -56);
+        ctx.bezierCurveTo(-72, -138, 70, -130, 168, -50);
+        ctx.stroke();
+
+        // Deep indigo-black arched eyebrow
+        ctx.strokeStyle = '#121622';
+        ctx.lineWidth = 20;
+        ctx.beginPath();
+        ctx.moveTo(-162, -44);
+        ctx.bezierCurveTo(-72, -122, 70, -114, 172, -38);
+        ctx.stroke();
+
+        // Almond sclera
+        ctx.fillStyle = '#fbf8f2';
+        ctx.beginPath();
+        ctx.moveTo(-158, 16);
+        ctx.bezierCurveTo(-66, -54, 66, -48, 160, 16);
+        ctx.bezierCurveTo(66, 68, -66, 68, -158, 16);
+        ctx.closePath();
+        ctx.fill();
+
+        // Subtle warm shadow under upper eyelid + cobalt iris
+        ctx.save();
+        ctx.clip();
+
+        ctx.fillStyle = '#132852';
+        ctx.beginPath();
+        ctx.arc(-8, 8, 62, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#080c16';
+        ctx.beginPath();
+        ctx.arc(-8, 8, 36, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 248, 234, 0.88)';
+        ctx.beginPath();
+        ctx.arc(-26, -10, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Subtle crimson corner accents
+        ctx.fillStyle = 'rgba(176, 46, 32, 0.55)';
+        ctx.beginPath();
+        ctx.arc(-146, 16, 18, 0, Math.PI * 2);
+        ctx.arc(148, 16, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Crisp upper & lower eyeliner contours
+        ctx.strokeStyle = '#12151e';
+        ctx.lineWidth = 17;
+        ctx.beginPath();
+        ctx.moveTo(-166, 18);
+        ctx.bezierCurveTo(-66, -56, 66, -50, 168, 16);
+        ctx.stroke();
+
+        ctx.lineWidth = 11;
+        ctx.beginPath();
+        ctx.moveTo(-158, 16);
+        ctx.bezierCurveTo(-66, 68, 66, 68, 160, 16);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      drawBuddhaEye(284, 468, 1);
+      drawBuddhaEye(740, 468, -1);
+
+      // Third Eye (Urna) — crimson-and-gold wheel of spiritual awakening
+      ctx.fillStyle = '#b42218';
+      ctx.beginPath();
+      ctx.arc(s / 2, 294, 58, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#dfa73a';
+      ctx.lineWidth = 12;
+      ctx.stroke();
+      ctx.fillStyle = '#f6d67c';
+      ctx.beginPath();
+      ctx.arc(s / 2, 294, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Iconic Nepali numeral १ ("Ek" — Unity symbol between and below eyes)
+      ctx.save();
+      ctx.strokeStyle = '#141822';
+      ctx.lineWidth = 30;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.arc(s / 2, 610, 40, Math.PI * 0.15, Math.PI * 1.88, false);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(s / 2 + 34, 624);
+      ctx.bezierCurveTo(s / 2 + 24, 756, s / 2 - 44, 824, s / 2 + 38, 868);
+      ctx.bezierCurveTo(s / 2 + 86, 890, s / 2 + 110, 844, s / 2 + 78, 814);
+      ctx.stroke();
+
+      // Delicate inner gilded outline inside the unity symbol
+      ctx.strokeStyle = '#d9a138';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(s / 2 + 34, 624);
+      ctx.bezierCurveTo(s / 2 + 24, 756, s / 2 - 44, 824, s / 2 + 38, 868);
+      ctx.stroke();
+      ctx.restore();
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // 5.12 Tibetan Prayer Flag (Lungta) High-Res Woodblock Print Texture (512x640)
+    function createPrayerFlagTexture() {
+      const w = 512, h = 640;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      const r = createRNG(1007);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+
+      // Authentic woven handloom cotton texture
+      ctx.fillStyle = 'rgba(0,0,0,0.045)';
+      for (let y = 0; y < h; y += 5) ctx.fillRect(0, y, w, 1.5);
+      for (let x = 0; x < w; x += 5) ctx.fillRect(x, 0, 1.5, h);
+
+      // Aged blockprint ink
+      ctx.strokeStyle = 'rgba(20, 18, 16, 0.62)';
+      ctx.fillStyle = 'rgba(20, 18, 16, 0.58)';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(32, 38, w - 64, h - 98);
+      ctx.lineWidth = 3;
+      ctx.strokeRect(46, 52, w - 92, h - 126);
+
+      // Four Corner Guardians (Garuda, Dragon, Snow Lion, Tiger medallions)
+      const corners = [[84, 92], [w - 84, 92], [84, h - 114], [w - 84, h - 114]];
+      for (const [cx, cy] of corners) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Central Wind Horse (Lungta) carrying the Flaming Three Jewels
+      ctx.save();
+      ctx.translate(w / 2, 224);
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 92, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Sun & crescent moon above medallion
+      ctx.beginPath();
+      ctx.arc(-115, -48, 14, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(115, -48, 14, 0.4, Math.PI * 1.6);
+      ctx.stroke();
+
+      // Stylized galloping Wind Horse silhouette
+      ctx.beginPath();
+      ctx.moveTo(-54, 34);
+      ctx.quadraticCurveTo(-40, -6, -10, -10);
+      ctx.quadraticCurveTo(22, -14, 46, -34);
+      ctx.lineTo(62, -20);
+      ctx.quadraticCurveTo(42, 8, 36, 44);
+      ctx.lineTo(18, 44);
+      ctx.lineTo(14, 18);
+      ctx.lineTo(-22, 18);
+      ctx.lineTo(-34, 46);
+      ctx.closePath();
+      ctx.fill();
+
+      // Flaming Wish-Fulfilling Jewel (Norbu) on horse saddle
+      ctx.beginPath();
+      ctx.arc(0, -34, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-14, -44);
+      ctx.quadraticCurveTo(0, -78, 14, -44);
+      ctx.fill();
+      ctx.restore();
+
+      // Crisp rows of Tibetan Uchen woodblock calligraphy strokes
+      for (let row = 0; row < 7; row++) {
+        const y = 348 + row * 28;
+        ctx.fillRect(68, y, w - 136, 3.2);
+        for (let x = 72; x < w - 80; x += 10 + Math.floor(r() * 10)) {
+          const gh = 8 + r() * 12;
+          ctx.fillRect(x, y + 2, 3.6, gh);
+          if (r() > 0.5) {
+            ctx.fillRect(x - 2, y + gh, 9, 3);
+          }
+          if (r() > 0.78) {
+            ctx.fillRect(x + 1, y - 6, 4, 4); // Vowel diacritic mark
+          }
+        }
+      }
+
+      // Natural sun-fading mottling
+      for (let i = 0; i < 120; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${0.06 + r() * 0.14})`;
+        ctx.beginPath();
+        ctx.arc(r() * w, r() * h, 10 + r() * 34, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.anisotropy = 8;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    // 5.13 Detailed Kathmandu Neighborhood Building Facade Atlas (Diffuse + Emissive)
+    function createCityBuildingTextures(seedOffset, style) {
+      const w = 512, h = 1024;
+      const cDiff = document.createElement('canvas');
+      const cEmis = document.createElement('canvas');
+      cDiff.width = cEmis.width = w;
+      cDiff.height = cEmis.height = h;
+      const ctxD = cDiff.getContext('2d');
+      const ctxE = cEmis.getContext('2d');
+      const r = createRNG(2100 + seedOffset);
+
+      ctxD.fillStyle = style.baseColor;
+      ctxD.fillRect(0, 0, w, h);
+      ctxE.fillStyle = '#000000';
+      ctxE.fillRect(0, 0, w, h);
+
+      // Plaster weathering & monsoon drip grime
+      for (let i = 0; i < 340; i++) {
+        ctxD.fillStyle = r() > 0.5 ? 'rgba(18, 14, 12, 0.08)' : 'rgba(244, 232, 212, 0.05)';
+        ctxD.fillRect(r() * w, r() * h, 14 + r() * 68, 20 + r() * 90);
+      }
+
+      // Traditional Tibetan monastery crimson roof-band (Khem) if monastery style
+      if (style.isMonastery) {
+        ctxD.fillStyle = '#6c1d18';
+        ctxD.fillRect(0, 0, w, 96);
+        ctxD.fillStyle = '#d49a38';
+        ctxD.fillRect(0, 88, w, 12);
+        for (let i = 0; i < 8; i++) {
+          ctxD.fillStyle = '#dfb04c';
+          ctxD.beginPath();
+          ctxD.arc(32 + i * 64, 48, 14, 0, Math.PI * 2);
+          ctxD.fill();
+        }
+      }
+
+      const floors = style.floors;
+      const fh = h / floors;
+      const cols = style.cols;
+      const cw = w / cols;
+
+      for (let f = 0; f < floors; f++) {
+        const fy = f * fh;
+
+        // Floor slab ledge & balcony shadow
+        ctxD.fillStyle = 'rgba(26, 22, 20, 0.34)';
+        ctxD.fillRect(0, fy, w, 10);
+        ctxD.fillStyle = 'rgba(220, 206, 186, 0.14)';
+        ctxD.fillRect(0, fy + 10, w, 5);
+
+        const isGroundShop = (f === floors - 1);
+
+        for (let col = 0; col < cols; col++) {
+          const wx = col * cw + cw * 0.16;
+          const wy = fy + fh * (isGroundShop ? 0.18 : 0.22);
+          const ww = cw * 0.68;
+          const wh = fh * (isGroundShop ? 0.72 : 0.56);
+
+          // Traditional dark carved wooden window trim (or painted Nepali blue/green trim)
+          ctxD.fillStyle = style.trimColor;
+          ctxD.fillRect(wx - 7, wy - 7, ww + 14, wh + 14);
+
+          // Recessed window glass
+          ctxD.fillStyle = '#12151e';
+          ctxD.fillRect(wx, wy, ww, wh);
+
+          // Decide illumination probability (warm street-level shops glow brightly!)
+          const litProb = isGroundShop ? 0.68 : 0.44;
+          if (r() < litProb) {
+            const isCool = !isGroundShop && r() < 0.15;
+            const g = ctxE.createLinearGradient(wx, wy, wx, wy + wh);
+            if (isCool) {
+              g.addColorStop(0, '#c6deff');
+              g.addColorStop(1, '#4c6d9c');
+            } else if (isGroundShop) {
+              g.addColorStop(0, '#ffd48c');
+              g.addColorStop(0.6, '#f09432');
+              g.addColorStop(1, '#a84a12');
+            } else {
+              const warmth = r();
+              g.addColorStop(0, warmth > 0.45 ? '#ffd488' : '#ffad54');
+              g.addColorStop(1, warmth > 0.45 ? '#b8621c' : '#80340e');
+            }
+            ctxE.fillStyle = g;
+            ctxE.fillRect(wx + 2, wy + 2, ww - 4, wh - 4);
+
+            // Window mullions / carved Newari lattice bars
+            ctxE.fillStyle = '#140e0a';
+            ctxE.fillRect(wx + ww * 0.5 - 2, wy, 4, wh);
+            ctxE.fillRect(wx, wy + wh * 0.52, ww, 3.5);
+            if (style.isNewari) {
+              ctxE.fillRect(wx + ww * 0.25 - 1.5, wy, 3, wh);
+              ctxE.fillRect(wx + ww * 0.75 - 1.5, wy, 3, wh);
+            }
+
+            // Interior curtain or person/furniture silhouette depth
+            if (r() > 0.48) {
+              ctxE.fillStyle = 'rgba(18, 10, 6, 0.52)';
+              const cwCurtain = ww * (0.25 + r() * 0.28);
+              if (r() > 0.5) {
+                ctxE.fillRect(wx, wy, cwCurtain, wh);
+              } else {
+                ctxE.fillRect(wx + ww - cwCurtain, wy, cwCurtain, wh);
+              }
+            }
+          }
+        }
+      }
+
+      const map = new THREE.CanvasTexture(cDiff);
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      map.colorSpace = THREE.SRGBColorSpace;
+
+      const emissiveMap = new THREE.CanvasTexture(cEmis);
+      emissiveMap.wrapS = emissiveMap.wrapT = THREE.RepeatWrapping;
+      emissiveMap.colorSpace = THREE.SRGBColorSpace;
+
+      return { map, emissiveMap };
+    }
+
+    // =========================================================================
+    // SECTION 06: PROCEDURAL HIMALAYAN SKY DOME SHADER
+    // (Milky Way Dust, Twinkling Stars, Crescent Moon, Dusk Transition, Golden Sun, Clouds)
+    // =========================================================================
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms: {
+        uTime: sharedUniforms.uTime,
+        uDayFactor: sharedUniforms.uDayFactor,
+        uSunDir: sharedUniforms.uSunDir,
+        uMoonDir: sharedUniforms.uMoonDir
+      },
+      vertexShader: /* glsl */`
+        varying vec3 vDir;
+        void main() {
+          vDir = normalize(position);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform float uTime;
+        uniform float uDayFactor;
+        uniform vec3 uSunDir;
+        uniform vec3 uMoonDir;
+        varying vec3 vDir;
+
+        float hash31(vec3 p) {
+          p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+          p += dot(p.zxy, p.yxz + 19.19);
+          return fract(p.x * p.y * p.z);
+        }
+
+        float noise2(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          float a = hash31(vec3(i, 0.0));
+          float b = hash31(vec3(i + vec2(1.0, 0.0), 0.0));
+          float c = hash31(vec3(i + vec2(0.0, 1.0), 0.0));
+          float d = hash31(vec3(i + vec2(1.0, 1.0), 0.0));
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+
+        float fbm(vec2 p) {
+          float v = 0.0, a = 0.5;
+          for (int i = 0; i < 5; i++) {
+            v += a * noise2(p);
+            p = p * 2.04 + vec2(11.7, 8.3);
+            a *= 0.5;
+          }
+          return v;
+        }
+
+        void main() {
+          vec3 dir = normalize(vDir);
+          float h = clamp(dir.y, 0.0, 1.0);
+          float dusk = sin(uDayFactor * 3.14159);
+
+          // 1. NIGHT SKY: Crisp Himalayan indigo zenith -> warm urban valley light pollution haze
+          vec3 nZenith  = vec3(0.014, 0.026, 0.068);
+          vec3 nMid     = vec3(0.042, 0.068, 0.138);
+          vec3 nHorizon = vec3(0.145, 0.125, 0.165);
+          vec3 nightCol = mix(nHorizon, nMid, smoothstep(0.0, 0.25, h));
+          nightCol = mix(nightCol, nZenith, smoothstep(0.18, 0.78, h));
+          // Amber Kathmandu urban haze hugging horizon
+          float urbanGlow = exp(-abs(dir.y - 0.012) * 15.0);
+          nightCol += vec3(0.22, 0.115, 0.048) * urbanGlow;
+
+          // 2. DUSK INTERMEDIATE: Luminous Himalayan twilight violet & rose-amber
+          vec3 kZenith  = vec3(0.08, 0.11, 0.28);
+          vec3 kHorizon = vec3(0.68, 0.34, 0.28);
+          vec3 duskCol  = mix(kHorizon, kZenith, smoothstep(0.0, 0.52, h));
+
+          // 3. GOLDEN-HOUR DAY: Cerulean alpine sky -> dusty golden-peach valley horizon
+          vec3 dZenith  = vec3(0.12, 0.32, 0.62);
+          vec3 dMid     = vec3(0.38, 0.56, 0.74);
+          vec3 dHorizon = vec3(0.95, 0.72, 0.48);
+          vec3 dayCol = mix(dHorizon, dMid, smoothstep(0.0, 0.26, h));
+          dayCol = mix(dayCol, dZenith, smoothstep(0.22, 0.80, h));
+
+          vec3 col = mix(nightCol, dayCol, uDayFactor);
+          col = mix(col, duskCol, dusk * 0.48);
+
+          float nightVis = 1.0 - smoothstep(0.0, 0.58, uDayFactor);
+
+          // SUBTLE HIMALAYAN MILKY WAY BAND (Night only)
+          if (nightVis > 0.01 && dir.y > 0.06) {
+            float mwBand = exp(-pow((dir.x * 0.72 + dir.z * 0.45 - dir.y * 0.58 + 0.18) * 3.6, 2.0));
+            float mwCloud = fbm(dir.xz * 4.5 + vec2(2.1, -1.4));
+            col += vec3(0.10, 0.13, 0.22) * mwBand * mwCloud * smoothstep(0.06, 0.35, dir.y) * nightVis * 0.55;
+          }
+
+          // MULTI-SCALE TWINKLING STARFIELD (Night only)
+          if (nightVis > 0.01 && dir.y > 0.025) {
+            for (int layer = 0; layer < 2; layer++) {
+              float scale = layer == 0 ? 195.0 : 320.0;
+              vec3 sp = dir * scale;
+              vec3 cell = floor(sp);
+              vec3 f = fract(sp) - 0.5;
+              float rnd = hash31(cell + float(layer) * 71.0);
+              float thresh = layer == 0 ? 0.968 : 0.976;
+              if (rnd > thresh) {
+                vec3 off = (vec3(hash31(cell + 1.3), hash31(cell + 2.7), hash31(cell + 4.1)) - 0.5) * 0.62;
+                float dist = length(f - off);
+                float rad = layer == 0 ? 0.115 : 0.085;
+                float star = smoothstep(rad, 0.012, dist);
+                float twinkle = 0.65 + 0.35 * sin(uTime * (1.6 + rnd * 5.2) + rnd * 82.0);
+                vec3 sCol = mix(vec3(0.78, 0.88, 1.0), vec3(1.0, 0.90, 0.72), fract(rnd * 43.0));
+                col += sCol * star * twinkle * smoothstep(0.025, 0.24, dir.y) * nightVis * (layer == 0 ? 1.45 : 0.85);
+              }
+            }
+          }
+
+          // WAXING CRESCENT MOON WITH EARTHSHINE & SOFT ATMOSPHERIC CORONA
+          vec3 mDir = normalize(uMoonDir);
+          float moonDot = max(dot(dir, mDir), 0.0);
+          float moonDisk = smoothstep(0.99912, 0.99942, moonDot);
+          vec3 cutDir = normalize(mDir + vec3(0.016, 0.009, 0.0));
+          float moonCut = smoothstep(0.99900, 0.99932, dot(dir, cutDir));
+          float crescent = clamp(moonDisk - moonCut * 0.82, 0.0, 1.0);
+          float earthshine = moonDisk * 0.16;
+          float moonCorona = pow(moonDot, 14.0) * 0.22 + pow(moonDot, 96.0) * 0.38;
+          col += vec3(0.72, 0.84, 1.0) * moonCorona * nightVis;
+          col += vec3(1.55, 1.56, 1.62) * (crescent + earthshine) * nightVis;
+
+          // LOW GOLDEN-HOUR SUN & WARM MIE SCATTERING
+          vec3 sDir = normalize(uSunDir);
+          float sunDot = max(dot(dir, sDir), 0.0);
+          float sunDisk = smoothstep(0.9985, 0.99925, sunDot);
+          float sunHalo = pow(sunDot, 5.5) * 0.44 + pow(sunDot, 42.0) * 0.72;
+          col += vec3(1.0, 0.62, 0.30) * sunHalo * clamp(uDayFactor + dusk * 0.55, 0.0, 1.0);
+          col += vec3(2.6, 1.95, 1.25) * sunDisk * uDayFactor;
+
+          // HIGH-ALTITUDE HIMALAYAN WISPY CLOUDS
+          if (dir.y > 0.015) {
+            vec2 cUv = dir.xz / (dir.y + 0.24) * 1.12;
+            cUv.x += uTime * 0.0042;
+            cUv.y -= uTime * 0.0018;
+            float n = fbm(cUv * 1.38);
+            float nDetail = fbm(cUv * 3.1 - vec2(uTime * 0.003, 0.0));
+            float cloudMask = smoothstep(0.45, 0.78, n * 0.76 + nDetail * 0.24) * smoothstep(0.015, 0.20, dir.y);
+
+            vec3 nCloud = mix(vec3(0.07, 0.10, 0.18), vec3(0.28, 0.34, 0.46), pow(moonDot, 3.0));
+            vec3 kCloud = mix(vec3(0.32, 0.20, 0.30), vec3(0.96, 0.48, 0.28), pow(sunDot, 2.0));
+            vec3 dCloud = mix(vec3(0.88, 0.80, 0.74), vec3(1.18, 0.84, 0.56), pow(sunDot, 2.2));
+
+            vec3 cloudCol = mix(nCloud, dCloud, uDayFactor);
+            cloudCol = mix(cloudCol, kCloud, dusk * 0.52);
+            col = mix(col, cloudCol, cloudMask * mix(0.38, 0.64, uDayFactor));
+          }
+
+          // Smooth horizon ground blending
+          vec3 horCol = mix(nHorizon, dHorizon, uDayFactor);
+          horCol = mix(horCol, kHorizon, dusk * 0.48);
+          col = mix(col, horCol, smoothstep(0.02, -0.08, dir.y));
+
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `
+    });
+    const skyDome = new THREE.Mesh(new THREE.SphereGeometry(620, 56, 36), skyMat);
+    scene.add(skyDome);
+
+    // =========================================================================
+    // SECTION 07: CINEMATIC LIGHTING ARCHITECTURE
+    // =========================================================================
+    const hemiLight = new THREE.HemisphereLight('#2e497c', '#261811', 0.48);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight('#7ea6e8', 1.0);
+    keyLight.position.copy(sharedUniforms.uMoonDir.value).multiplyScalar(90);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 25;
+    keyLight.shadow.camera.far = 185;
+    keyLight.shadow.camera.left = -20;
+    keyLight.shadow.camera.right = 20;
+    keyLight.shadow.camera.top = 20;
+    keyLight.shadow.camera.bottom = -20;
+    keyLight.shadow.bias = -0.00055;
+    scene.add(keyLight);
+
+    // Subtle warm upward bounce from Kathmandu streets below
+    const valleyBounceLight = new THREE.DirectionalLight('#ff8a36', 0.24);
+    valleyBounceLight.position.set(12, -25, -40);
+    scene.add(valleyBounceLight);
+
+    // Foreground rooftop warm practical lights
+    const pavilionLight = new THREE.PointLight('#ff9a3e', 5.8, 14, 1.55);
+    pavilionLight.position.set(-4.3, 2.22, 2.55);
+    pavilionLight.castShadow = true;
+    pavilionLight.shadow.mapSize.set(512, 512);
+    pavilionLight.shadow.bias = -0.001;
+    scene.add(pavilionLight);
+
+    const latticeWindowLight = new THREE.PointLight('#ff8c2e', 3.6, 9.5, 1.65);
+    latticeWindowLight.position.set(-4.7, 1.65, 4.7);
+    scene.add(latticeWindowLight);
+
+    const tableLight = new THREE.PointLight('#ff9134', 3.8, 9.0, 1.65);
+    tableLight.position.set(-1.35, 0.86, 1.05);
+    scene.add(tableLight);
+
+    const parapetLightL = new THREE.PointLight('#ff7e26', 2.8, 8.5, 1.75);
+    parapetLightL.position.set(-2.7, 1.38, -5.25);
+    scene.add(parapetLightL);
+
+    const parapetLightR = new THREE.PointLight('#ff852e', 2.8, 8.5, 1.75);
+    parapetLightR.position.set(2.8, 1.38, -5.25);
+    scene.add(parapetLightR);
+
+    // =========================================================================
+    // SECTION 08: FOREGROUND ROOFTOP ARCHITECTURE & NEWARI/TIBETAN SANCTUARY
+    // =========================================================================
+    const rooftopGroup = new THREE.Group();
+    scene.add(rooftopGroup);
+
+    const tilePBR     = createRooftopTilePBR();
+    const plasterPBR  = createPlasterBrickPBR();
+    const woodPBR     = createCarvedWoodPBR();
+    const jhingatiPBR = createJhingatiTilePBR();
+    const rugTex      = createTibetanRugTexture();
+    const tablePanelTex = createTibetanTablePanelTexture();
+    const wheelTex    = createPrayerWheelTexture();
+
+    const floorMat = new THREE.MeshStandardMaterial({
+      map: tilePBR.map,
+      bumpMap: tilePBR.bumpMap,
+      bumpScale: 0.032,
+      roughnessMap: tilePBR.roughnessMap,
+      roughness: 0.92,
+      metalness: 0.08,
+      envMapIntensity: 1.2
+    });
+
+    const plasterMat = new THREE.MeshStandardMaterial({
+      map: plasterPBR.map,
+      bumpMap: plasterPBR.bumpMap,
+      bumpScale: 0.045,
+      roughness: 0.92,
+      metalness: 0.02
+    });
+
+    const copingMat = new THREE.MeshStandardMaterial({
+      color: '#665d55',
+      roughness: 0.86,
+      metalness: 0.05
+    });
+
+    const carvedWoodMat = new THREE.MeshStandardMaterial({
+      map: woodPBR.map,
+      bumpMap: woodPBR.bumpMap,
+      bumpScale: 0.025,
+      roughness: 0.68,
+      metalness: 0.06
+    });
+
+    const jhingatiMat = new THREE.MeshStandardMaterial({
+      map: jhingatiPBR.map,
+      bumpMap: jhingatiPBR.bumpMap,
+      bumpScale: 0.048,
+      roughness: 0.76,
+      metalness: 0.06
+    });
+
+    const darkIronMat = new THREE.MeshStandardMaterial({
+      color: '#22252b',
+      roughness: 0.48,
+      metalness: 0.78
+    });
+
+    const hammeredBrassMat = new THREE.MeshStandardMaterial({
+      color: '#d4a044',
+      roughness: 0.28,
+      metalness: 0.90,
+      envMapIntensity: 1.45
+    });
+
+    const agedCopperMat = new THREE.MeshStandardMaterial({
+      color: '#a8623c',
+      roughness: 0.36,
+      metalness: 0.85,
+      envMapIntensity: 1.35
+    });
+
+    const terracottaMat = new THREE.MeshStandardMaterial({
+      color: '#9c492e',
+      roughness: 0.84,
+      metalness: 0.03
+    });
+
+    // Main rooftop slab (14.4m x 12.2m, top surface at y = 0)
+    const roofSlab = new THREE.Mesh(new THREE.BoxGeometry(14.4, 0.42, 12.2), floorMat);
+    roofSlab.position.set(0, -0.21, 0);
+    roofSlab.receiveShadow = true;
+    rooftopGroup.add(roofSlab);
+
+    // Building body below rooftop down to street level (y = -12)
+    const ownFacadeTex = createCityBuildingTextures(99, {
+      baseColor: '#7a5242',
+      trimColor: '#261812',
+      floors: 4,
+      cols: 4,
+      isNewari: true,
+      isMonastery: false
+    });
+    const ownBuildingMat = new THREE.MeshStandardMaterial({
+      map: ownFacadeTex.map,
+      emissive: new THREE.Color('#ffffff'),
+      emissiveMap: ownFacadeTex.emissiveMap,
+      emissiveIntensity: 1.25,
+      roughness: 0.9
+    });
+    const underBuilding = new THREE.Mesh(new THREE.BoxGeometry(14.2, 12.0, 12.0), ownBuildingMat);
+    underBuilding.position.set(0, -6.4, 0);
+    rooftopGroup.add(underBuilding);
+
+    // Decorative overhanging timber cornice below our rooftop parapet
+    const underCornice = new THREE.Mesh(new THREE.BoxGeometry(14.7, 0.22, 12.5), carvedWoodMat);
+    underCornice.position.set(0, -0.52, 0);
+    rooftopGroup.add(underCornice);
+
+    // --- Detailed Parapet Walls with Stepped Stone Coping, Brick Plinths & Rain Spout ---
+    function buildParapetWall(x, z, w, d) {
+      const h = 0.92;
+      // Base waterproofing skirt molding
+      const baseSkirt = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.14, d + 0.06), copingMat);
+      baseSkirt.position.set(x, 0.07, z);
+      baseSkirt.receiveShadow = true;
+      rooftopGroup.add(baseSkirt);
+
+      // Main brick & peeling plaster wall
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), plasterMat);
+      wall.position.set(x, h * 0.5, z);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      rooftopGroup.add(wall);
+
+      // Beveled multi-tier stone coping slab on top
+      const capLower = new THREE.Mesh(new THREE.BoxGeometry(w + 0.10, 0.05, d + 0.10), copingMat);
+      capLower.position.set(x, h + 0.025, z);
+      capLower.castShadow = true;
+      capLower.receiveShadow = true;
+      rooftopGroup.add(capLower);
+
+      const capUpper = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.05, d + 0.06), copingMat);
+      capUpper.position.set(x, h + 0.075, z);
+      capUpper.castShadow = true;
+      capUpper.receiveShadow = true;
+      rooftopGroup.add(capUpper);
+    }
+
+    buildParapetWall(0, -5.92, 14.3, 0.34);
+    buildParapetWall(0,  5.92, 14.3, 0.34);
+    buildParapetWall(-7.02, 0, 0.34, 11.6);
+    buildParapetWall( 7.02, 0, 0.34, 11.6);
+
+    // Corner masonry piers with carved stone finials
+    const cornerPiers = [[-7.0, -5.9], [7.0, -5.9], [-7.0, 5.9], [7.0, 5.9]];
+    for (const [px, pz] of cornerPiers) {
+      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.54, 1.18, 0.54), plasterMat);
+      pier.position.set(px, 0.59, pz);
+      pier.castShadow = true;
+      pier.receiveShadow = true;
+      rooftopGroup.add(pier);
+
+      const cap1 = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.08, 0.64), copingMat);
+      cap1.position.set(px, 1.22, pz);
+      rooftopGroup.add(cap1);
+
+      const cap2 = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.46), copingMat);
+      cap2.position.set(px, 1.30, pz);
+      rooftopGroup.add(cap2);
+    }
+
+    // Small weathered iron drainage spout sticking out front-right parapet floor edge
+    const rainSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.72, 10), darkIronMat);
+    rainSpout.rotation.x = Math.PI * 0.46;
+    rainSpout.position.set(4.1, 0.12, -6.1);
+    rooftopGroup.add(rainSpout);
+
+    // --- Traditional Carved Newari Timber Pavilion (Sattal) & Glowing Ankhijhyal Lattice Window ---
+    const pavGroup = new THREE.Group();
+    rooftopGroup.add(pavGroup);
+
+    // Rooftop cafe back-left masonry staircase penthouse wall behind pavilion
+    const cafeWall = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.25, 0.42), plasterMat);
+    cafeWall.position.set(-4.65, 1.625, 5.45);
+    cafeWall.castShadow = true;
+    cafeWall.receiveShadow = true;
+    pavGroup.add(cafeWall);
+
+    // Traditional Newari Carved Wood Lattice Window (Ankhijhyal) spilling warm interior amber glow!
+    const latticeGroup = new THREE.Group();
+    latticeGroup.position.set(-4.65, 1.72, 5.21);
+    pavGroup.add(latticeGroup);
+
+    const winGlowMat = new THREE.MeshStandardMaterial({
+      color: '#ffdfaa',
+      emissive: new THREE.Color('#ff8e2b'),
+      emissiveIntensity: 3.4,
+      roughness: 0.4
+    });
+    const winBacking = new THREE.Mesh(new THREE.PlaneGeometry(1.58, 1.28), winGlowMat);
+    winBacking.position.z = 0.01;
+    latticeGroup.add(winBacking);
+
+    // Outer stepped carved Newari window frame
+    const frameParts = [
+      [0,  0.68, 1.88, 0.14, 0.16],
+      [0, -0.68, 1.88, 0.14, 0.16],
+      [-0.86, 0, 0.16, 1.48, 0.16],
+      [ 0.86, 0, 0.16, 1.48, 0.16],
+      [0,  0.80, 2.18, 0.10, 0.22], // Extended carved lintel beam
+      [0, -0.80, 2.10, 0.10, 0.20]  // Extended sill beam
+    ];
+    for (const [fx, fy, fw, fh, fd] of frameParts) {
+      const f = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd), carvedWoodMat);
+      f.position.set(fx, fy, 0.06);
+      f.castShadow = true;
+      latticeGroup.add(f);
+    }
+
+    // Intricate diagonal diamond-lattice wooden bars (Ankhijhyal grille)
+    for (let i = -5; i <= 5; i++) {
+      const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.032, 1.45, 0.045), carvedWoodMat);
+      bar1.position.set(i * 0.18, 0, 0.04);
+      bar1.rotation.z = Math.PI * 0.25;
+      latticeGroup.add(bar1);
+
+      const bar2 = new THREE.Mesh(new THREE.BoxGeometry(0.032, 1.45, 0.045), carvedWoodMat);
+      bar2.position.set(i * 0.18, 0, 0.04);
+      bar2.rotation.z = -Math.PI * 0.25;
+      latticeGroup.add(bar2);
+    }
+
+    // Carved wooden columns (Thama) with stone lotus bases (Ilohan) & stepped brackets (Metha)
+    const pavCols = [
+      [-6.55, 0.95], [-2.75, 0.95],
+      [-6.55, 5.15], [-2.75, 5.15]
+    ];
+    for (const [px, pz] of pavCols) {
+      // Stepped stone lotus base (Ilohan)
+      const base1 = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.38), copingMat);
+      base1.position.set(px, 0.06, pz);
+      pavGroup.add(base1);
+      const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.10, 8), copingMat);
+      base2.position.set(px, 0.17, pz);
+      pavGroup.add(base2);
+
+      // Octagonal carved sal wood pillar with decorative collar rings
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.105, 2.75, 8), carvedWoodMat);
+      shaft.position.set(px, 1.59, pz);
+      shaft.castShadow = true;
+      shaft.receiveShadow = true;
+      pavGroup.add(shaft);
+
+      for (const ry of [0.55, 1.55, 2.65]) {
+        const ring = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.08, 0.23), carvedWoodMat);
+        ring.position.set(px, ry, pz);
+        pavGroup.add(ring);
+      }
+
+      // Traditional multi-tiered winged capital bracket (Metha)
+      const capLow = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.11, 0.26), carvedWoodMat);
+      capLow.position.set(px, 2.95, pz);
+      capLow.castShadow = true;
+      pavGroup.add(capLow);
+
+      const capHigh = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.14, 0.26), carvedWoodMat);
+      capHigh.position.set(px, 3.07, pz);
+      capHigh.castShadow = true;
+      pavGroup.add(capHigh);
+    }
+
+    // Angled sculpted roof struts (Tundal) supporting deep eaves
+    const tundalCoords = [
+      [-2.42, 2.94, 0.95, -0.58, 0],
+      [-2.42, 3.24, 5.15, -0.58, 0],
+      [-4.65, 2.90, 0.62,  0.0, 0.58]
+    ];
+    for (const [tx, ty, tz, rz, rx] of tundalCoords) {
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.92, 0.13), carvedWoodMat);
+      strut.position.set(tx, ty, tz);
+      strut.rotation.set(rx, 0, rz);
+      strut.castShadow = true;
+      pavGroup.add(strut);
+    }
+
+    // Heavy horizontal timber roof beams (Ninal)
+    const frontBeam = new THREE.Mesh(new THREE.BoxGeometry(4.65, 0.20, 0.22), carvedWoodMat);
+    frontBeam.position.set(-4.65, 3.22, 0.95);
+    frontBeam.castShadow = true;
+    pavGroup.add(frontBeam);
+
+    const backBeam = new THREE.Mesh(new THREE.BoxGeometry(4.65, 0.20, 0.22), carvedWoodMat);
+    backBeam.position.set(-4.65, 3.62, 5.15);
+    pavGroup.add(backBeam);
+
+    // Sloped Nepali Jhingati terracotta-tiled pavilion roof
+    const roofPitch = 0.115;
+    const pavRoofDeck = new THREE.Mesh(new THREE.BoxGeometry(5.15, 0.15, 5.35), jhingatiMat);
+    pavRoofDeck.position.set(-4.65, 3.56, 3.05);
+    pavRoofDeck.rotation.x = roofPitch;
+    pavRoofDeck.castShadow = true;
+    pavRoofDeck.receiveShadow = true;
+    pavGroup.add(pavRoofDeck);
+
+    // Exposed wooden rafters & terracotta ridge tiles
+    for (let i = 0; i < 11; i++) {
+      const rx = -6.95 + i * 0.46;
+      const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.09, 5.45), carvedWoodMat);
+      rafter.position.set(rx, 3.44, 3.05);
+      rafter.rotation.x = roofPitch;
+      pavGroup.add(rafter);
+
+      // Raised terracotta seam rib on top of roof
+      const tileRib = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 5.35, 6), terracottaMat);
+      tileRib.rotation.x = Math.PI * 0.5 + roofPitch;
+      tileRib.position.set(rx, 3.66, 3.05);
+      pavGroup.add(tileRib);
+    }
+
+    // Decorative carved hanging wooden eave pendants (Kigah) along front edge
+    for (let i = 0; i < 18; i++) {
+      const px = -6.92 + i * 0.268;
+      const pend = new THREE.Mesh(new THREE.ConeGeometry(0.036, 0.14, 4), carvedWoodMat);
+      pend.rotation.x = Math.PI;
+      pend.position.set(px, 3.16, 0.42);
+      pavGroup.add(pend);
+    }
+
+    // --- Ornate Hanging Nepali Brass Temple Lantern under Pavilion ---
+    const hangLanternGroup = new THREE.Group();
+    hangLanternGroup.position.set(-4.3, 3.36, 2.55);
+    rooftopGroup.add(hangLanternGroup);
+
+    const lanternChain = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.78, 6), darkIronMat);
+    lanternChain.position.y = -0.39;
+    hangLanternGroup.add(lanternChain);
+
+    const lanternRing = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.01, 6, 12), hammeredBrassMat);
+    lanternRing.position.y = -0.78;
+    hangLanternGroup.add(lanternRing);
+
+    const lanternRoof = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.16, 6), hammeredBrassMat);
+    lanternRoof.position.y = -0.88;
+    hangLanternGroup.add(lanternRoof);
+
+    const hangLanternGlowMat = new THREE.MeshStandardMaterial({
+      color: '#ffe5bd',
+      emissive: new THREE.Color('#ff9d3b'),
+      emissiveIntensity: 3.4,
+      roughness: 0.45
+    });
+    const hangLanternGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.115, 0.36, 6), hangLanternGlowMat);
+    hangLanternGlass.position.y = -1.12;
+    hangLanternGroup.add(hangLanternGlass);
+
+    // 6 thin brass lattice ribs around hanging lantern glass
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.38, 6), hammeredBrassMat);
+      rib.position.set(Math.cos(a) * 0.145, -1.12, Math.sin(a) * 0.145);
+      hangLanternGroup.add(rib);
+    }
+
+    const lanternBot = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.075, 0.08, 6), hammeredBrassMat);
+    lanternBot.position.y = -1.33;
+    hangLanternGroup.add(lanternBot);
+
+    const lanternTassel = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.12, 6), new THREE.MeshStandardMaterial({ color: '#8f2018', roughness: 0.9 }));
+    lanternTassel.rotation.x = Math.PI;
+    lanternTassel.position.y = -1.42;
+    hangLanternGroup.add(lanternTassel);
+
+    // --- Intimate Rooftop Tea & Meditation Sanctuary (Chogtse Table, Chiya, Singing Bowl, Incense) ---
+    const teaArea = new THREE.Group();
+    teaArea.position.set(-1.35, 0, 1.05);
+    rooftopGroup.add(teaArea);
+
+    // Hand-woven Tibetan wool rug
+    const rugGeo = new THREE.BoxGeometry(2.65, 0.022, 2.25);
+    const rugMat = new THREE.MeshStandardMaterial({ map: rugTex, roughness: 0.95, metalness: 0.0 });
+    const rugMesh = new THREE.Mesh(rugGeo, rugMat);
+    rugMesh.position.y = 0.011;
+    rugMesh.rotation.y = 0.08;
+    rugMesh.receiveShadow = true;
+    teaArea.add(rugMesh);
+
+    // Painted Low Tibetan Chogtse Tea Table
+    const tableGroup = new THREE.Group();
+    tableGroup.rotation.y = 0.08;
+    teaArea.add(tableGroup);
+
+    const tableTop = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.065, 0.80), carvedWoodMat);
+    tableTop.position.y = 0.44;
+    tableTop.castShadow = true;
+    tableTop.receiveShadow = true;
+    tableGroup.add(tableTop);
+
+    // Painted Tibetan lotus & cloud front/back apron panels
+    const apronMat = new THREE.MeshStandardMaterial({ map: tablePanelTex, roughness: 0.65 });
+    const frontApron = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.24, 0.04), apronMat);
+    frontApron.position.set(0, 0.29, -0.34);
+    frontApron.castShadow = true;
+    tableGroup.add(frontApron);
+
+    const backApron = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.24, 0.04), apronMat);
+    backApron.position.set(0, 0.29, 0.34);
+    tableGroup.add(backApron);
+
+    for (const [lx, lz] of [[-0.52, -0.33], [0.52, -0.33], [-0.52, 0.33], [0.52, 0.33]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.42, 0.075), carvedWoodMat);
+      leg.position.set(lx, 0.21, lz);
+      leg.castShadow = true;
+      tableGroup.add(leg);
+    }
+
+    // Two Cozy Woven Dhaka Floor Cushions
+    const dhakaMat1 = new THREE.MeshStandardMaterial({
+      map: createDhakaFabricTexture('#6b1f1c', '#cc8e2e'),
+      roughness: 0.92
+    });
+    const dhakaMat2 = new THREE.MeshStandardMaterial({
+      map: createDhakaFabricTexture('#1e3852', '#c8682e'),
+      roughness: 0.92
+    });
+    const cushion1 = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.14, 0.58), dhakaMat1);
+    cushion1.position.set(-0.22, 0.085, 0.78);
+    cushion1.rotation.y = 0.24;
+    cushion1.castShadow = true;
+    cushion1.receiveShadow = true;
+    teaArea.add(cushion1);
+
+    const cushion2 = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.14, 0.60), dhakaMat2);
+    cushion2.position.set(0.86, 0.085, -0.04);
+    cushion2.rotation.y = -0.32;
+    cushion2.castShadow = true;
+    cushion2.receiveShadow = true;
+    teaArea.add(cushion2);
+
+    // Tabletop Brass & Paper Candle Lantern
+    const tblLampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.105, 0.04, 14), hammeredBrassMat);
+    tblLampBase.position.set(-0.34, 0.495, -0.10);
+    tableGroup.add(tblLampBase);
+
+    const tblLampGlowMat = new THREE.MeshStandardMaterial({
+      color: '#ffe6be',
+      emissive: new THREE.Color('#ff9632'),
+      emissiveIntensity: 3.9,
+      roughness: 0.4
+    });
+    const tblLampGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.076, 0.070, 0.22, 14), tblLampGlowMat);
+    tblLampGlass.position.set(-0.34, 0.625, -0.10);
+    tableGroup.add(tblLampGlass);
+
+    const tblLampRoof = new THREE.Mesh(new THREE.ConeGeometry(0.105, 0.08, 14), hammeredBrassMat);
+    tblLampRoof.position.set(-0.34, 0.77, -0.10);
+    tableGroup.add(tblLampRoof);
+
+    // Traditional Hammered Copper & Brass Tibetan Teapot (Chiya Kettle)
+    const kettleGroup = new THREE.Group();
+    kettleGroup.position.set(0.02, 0.475, -0.14);
+    kettleGroup.rotation.y = 0.6;
+    tableGroup.add(kettleGroup);
+
+    const kettleBody = new THREE.Mesh(new THREE.SphereGeometry(0.095, 16, 12), agedCopperMat);
+    kettleBody.scale.set(1.0, 0.85, 1.0);
+    kettleBody.position.y = 0.085;
+    kettleBody.castShadow = true;
+    kettleGroup.add(kettleBody);
+
+    const kettleNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.056, 0.06, 12), hammeredBrassMat);
+    kettleNeck.position.y = 0.16;
+    kettleGroup.add(kettleNeck);
+
+    const kettleLid = new THREE.Mesh(new THREE.ConeGeometry(0.052, 0.05, 12), hammeredBrassMat);
+    kettleLid.position.y = 0.21;
+    kettleGroup.add(kettleLid);
+
+    const kettleSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.022, 0.14, 8), hammeredBrassMat);
+    kettleSpout.position.set(0.095, 0.11, 0);
+    kettleSpout.rotation.z = -0.82;
+    kettleGroup.add(kettleSpout);
+
+    const kettleHandle = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.011, 6, 14, Math.PI * 1.3), hammeredBrassMat);
+    kettleHandle.position.set(-0.085, 0.10, 0);
+    kettleHandle.rotation.z = Math.PI * 0.35;
+    kettleGroup.add(kettleHandle);
+
+    // Two Glazed Ceramic Masala Chiya Cups + Delicate Rising Steam Wisps
+    const cupMat = new THREE.MeshStandardMaterial({ color: '#ddd0bc', roughness: 0.32, metalness: 0.05 });
+    const teaMat = new THREE.MeshStandardMaterial({ color: '#824f27', roughness: 0.16, metalness: 0.08 });
+    const steamParticles = [];
+
+    for (const [cx, cz] of [[0.24, 0.14], [0.38, -0.10]]) {
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.035, 0.088, 16), cupMat);
+      cup.position.set(cx, 0.516, cz);
+      cup.castShadow = true;
+      tableGroup.add(cup);
+
+      const saucer = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.052, 0.014, 16), cupMat);
+      saucer.position.set(cx, 0.478, cz);
+      tableGroup.add(saucer);
+
+      const liq = new THREE.Mesh(new THREE.CircleGeometry(0.041, 14), teaMat);
+      liq.rotation.x = -Math.PI / 2;
+      liq.position.set(cx, 0.556, cz);
+      tableGroup.add(liq);
+
+      for (let s = 0; s < 6; s++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: softMistTex,
+          color: '#f5e7d2',
+          transparent: true,
+          opacity: 0.15,
+          depthWrite: false
+        }));
+        sp.position.set(cx, 0.59 + s * 0.1, cz);
+        sp.scale.set(0.10, 0.14, 1);
+        tableGroup.add(sp);
+        steamParticles.push({ sprite: sp, baseX: cx, baseZ: cz, phase: s * 0.95 + rng() * 4.0 });
+      }
+    }
+
+    // Hammered Tibetan Brass Singing Bowl & Wooden Striker Mallet on Table Corner
+    const bowlPts = [
+      new THREE.Vector2(0.0, 0.0),
+      new THREE.Vector2(0.055, 0.006),
+      new THREE.Vector2(0.082, 0.035),
+      new THREE.Vector2(0.088, 0.072),
+      new THREE.Vector2(0.080, 0.072),
+      new THREE.Vector2(0.073, 0.036),
+      new THREE.Vector2(0.048, 0.012),
+      new THREE.Vector2(0.0, 0.010)
+    ];
+    const singingBowl = new THREE.Mesh(new THREE.LatheGeometry(bowlPts, 24), hammeredBrassMat);
+    singingBowl.position.set(-0.08, 0.474, 0.20);
+    singingBowl.castShadow = true;
+    tableGroup.add(singingBowl);
+
+    const striker = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.16, 8), carvedWoodMat);
+    striker.rotation.set(0, 0.5, Math.PI * 0.5);
+    striker.position.set(0.06, 0.486, 0.25);
+    tableGroup.add(striker);
+
+    // Brass Incense Holder (Dhupauro) + Glowing Ember Tip + Gracefully Curling Incense Smoke
+    const incenseHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.046, 0.03, 12), hammeredBrassMat);
+    incenseHolder.position.set(-0.46, 0.488, 0.22);
+    tableGroup.add(incenseHolder);
+
+    const incenseStick = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.003, 0.003, 0.20, 6),
+      new THREE.MeshStandardMaterial({ color: '#4c3824', roughness: 0.95 })
+    );
+    incenseStick.position.set(-0.43, 0.57, 0.22);
+    incenseStick.rotation.z = -0.32;
+    tableGroup.add(incenseStick);
+
+    const incenseEmber = new THREE.Mesh(
+      new THREE.SphereGeometry(0.007, 8, 8),
+      new THREE.MeshBasicMaterial({ color: '#ff6a1a' })
+    );
+    incenseEmber.position.set(-0.398, 0.665, 0.22);
+    tableGroup.add(incenseEmber);
+
+    const incenseSmokeParticles = [];
+    for (let i = 0; i < 16; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: softMistTex,
+        color: '#c9d2e6',
+        transparent: true,
+        opacity: 0.14,
+        depthWrite: false
+      }));
+      tableGroup.add(sp);
+      incenseSmokeParticles.push({ sprite: sp, phase: i / 16 });
+    }
+
+    // --- Gently Rotating Tibetan Prayer Wheel Stand (Mani Wheel near Front-Left Parapet) ---
+    const maniStand = new THREE.Group();
+    maniStand.position.set(-5.4, 0, -4.65);
+    maniStand.rotation.y = 0.42;
+    rooftopGroup.add(maniStand);
+
+    const maniBase = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.16, 0.44), carvedWoodMat);
+    maniBase.position.y = 0.08;
+    maniBase.castShadow = true;
+    maniStand.add(maniBase);
+
+    for (const sx of [-0.26, 0.26]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.18, 0.09), carvedWoodMat);
+      post.position.set(sx, 0.68, 0);
+      post.castShadow = true;
+      maniStand.add(post);
+    }
+
+    // Sloped miniature pagoda cap on top of Prayer Wheel frame
+    const maniCap = new THREE.Mesh(new THREE.ConeGeometry(0.52, 0.28, 4), terracottaMat);
+    maniCap.rotation.y = Math.PI * 0.25;
+    maniCap.position.y = 1.40;
+    maniStand.add(maniCap);
+
+    const maniFinial = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), hammeredBrassMat);
+    maniFinial.position.y = 1.56;
+    maniStand.add(maniFinial);
+
+    const maniSpindle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.15, 8), darkIronMat);
+    maniSpindle.position.y = 0.72;
+    maniStand.add(maniSpindle);
+
+    const maniCylinder = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.18, 0.72, 24),
+      new THREE.MeshStandardMaterial({
+        map: wheelTex,
+        roughness: 0.34,
+        metalness: 0.82,
+        envMapIntensity: 1.35
+      })
+    );
+    maniCylinder.position.y = 0.72;
+    maniCylinder.castShadow = true;
+    maniStand.add(maniCylinder);
+
+    // --- Flickering Brass Butter Lamps (Diyas) lining Front Parapet ---
+    const diyaFlames = [];
+    const diyaXs = [-4.8, -3.1, -1.4, 0.6, 2.4, 4.2];
+    const diyaFlameMat = new THREE.MeshBasicMaterial({ color: '#ffe19c' });
+
+    for (const dx of diyaXs) {
+      const diya = new THREE.Group();
+      diya.position.set(dx, 1.02, -5.92);
+
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.062, 0.07, 12), hammeredBrassMat);
+      foot.position.y = 0.035;
+      diya.add(foot);
+
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.024, 0.04, 10), hammeredBrassMat);
+      stem.position.y = 0.085;
+      diya.add(stem);
+
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.032, 0.062, 14), hammeredBrassMat);
+      bowl.position.y = 0.13;
+      diya.add(bowl);
+
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.017, 0.068, 8), diyaFlameMat);
+      flame.position.y = 0.19;
+      diya.add(flame);
+
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: softGlowTex,
+        color: '#ff9a32',
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }));
+      glow.position.y = 0.195;
+      glow.scale.set(0.46, 0.46, 1);
+      diya.add(glow);
+
+      rooftopGroup.add(diya);
+      diyaFlames.push({ flame, glow, phase: rng() * 25.0 });
+    }
+
+    // --- Warm Rooftop Cafe String Fairy Lights draped along Pavilion Eaves & Side Wall ---
+    const fairyLightMats = [];
+    const fairyBulbGeo = new THREE.SphereGeometry(0.028, 8, 8);
+    const fairyRopeMat = new THREE.MeshBasicMaterial({ color: '#1b1a1c' });
+
+    function addFairyLightStrand(pA, pB, sag, count) {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const t = i / 16;
+        const p = new THREE.Vector3().lerpVectors(pA, pB, t);
+        p.y -= Math.sin(t * Math.PI) * sag;
+        pts.push(p);
+      }
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const wire = new THREE.Mesh(new THREE.TubeGeometry(curve, 18, 0.006, 4, false), fairyRopeMat);
+      rooftopGroup.add(wire);
+
+      for (let i = 1; i < count; i++) {
+        const t = i / count;
+        const pos = curve.getPoint(t);
+        const bulbMat = new THREE.MeshStandardMaterial({
+          color: '#fff0cc',
+          emissive: new THREE.Color('#ffaa42'),
+          emissiveIntensity: 3.6,
+          roughness: 0.2
+        });
+        fairyLightMats.push({ mat: bulbMat, phase: rng() * 15.0 });
+
+        const bulb = new THREE.Mesh(fairyBulbGeo, bulbMat);
+        bulb.position.set(pos.x, pos.y - 0.03, pos.z);
+        rooftopGroup.add(bulb);
+      }
+    }
+
+    addFairyLightStrand(new THREE.Vector3(-6.75, 3.16, 0.55), new THREE.Vector3(-2.55, 3.16, 0.55), 0.22, 11);
+    addFairyLightStrand(new THREE.Vector3(-2.55, 3.16, 0.55), new THREE.Vector3(-2.55, 3.55, 5.15), 0.26, 10);
+    addFairyLightStrand(new THREE.Vector3(-2.65, 3.12, 0.85), new THREE.Vector3(6.85, 3.62, 2.55), 0.85, 16);
+
+    // --- Lush Potted Rooftop Garden (Marigolds, Bougainvillea & Clay Pots) ---
+    function addDetailedPottedPlant(x, z, scale = 1.0, style = 'marigold') {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      g.scale.setScalar(scale);
+
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.16, 0.38, 14), terracottaMat);
+      pot.position.y = 0.19;
+      pot.castShadow = true;
+      pot.receiveShadow = true;
+      g.add(pot);
+
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.028, 8, 18), terracottaMat);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.37;
+      g.add(rim);
+
+      const soil = new THREE.Mesh(
+        new THREE.CircleGeometry(0.23, 12),
+        new THREE.MeshStandardMaterial({ color: '#2b1e16', roughness: 0.98 })
+      );
+      soil.rotation.x = -Math.PI / 2;
+      soil.position.y = 0.35;
+      g.add(soil);
+
+      const leafMat = new THREE.MeshStandardMaterial({ color: '#223e20', roughness: 0.84 });
+      const stemMat = new THREE.MeshStandardMaterial({ color: '#354a24', roughness: 0.9 });
+
+      const branches = 6;
+      for (let b = 0; b < branches; b++) {
+        const a = (b / branches) * Math.PI * 2 + rng() * 0.4;
+        const len = 0.34 + rng() * 0.28;
+        const tilt = 0.22 + rng() * 0.38;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.014, len, 6), stemMat);
+        stem.position.set(Math.cos(a) * 0.08, 0.36 + len * 0.42, Math.sin(a) * 0.08);
+        stem.rotation.set(Math.sin(a) * tilt, 0, -Math.cos(a) * tilt);
+        g.add(stem);
+
+        for (let l = 0; l < 3; l++) {
+          const leaf = new THREE.Mesh(new THREE.DodecahedronGeometry(0.085 + rng() * 0.045, 1), leafMat);
+          const frac = 0.45 + l * 0.26;
+          leaf.position.set(
+            Math.cos(a) * (0.06 + frac * 0.16),
+            0.38 + frac * len * 0.9,
+            Math.sin(a) * (0.06 + frac * 0.16)
+          );
+          leaf.scale.set(1.15, 0.72, 1.0);
+          leaf.castShadow = true;
+          g.add(leaf);
+        }
+
+        if (style === 'marigold' || style === 'bougainvillea') {
+          const col = style === 'marigold'
+            ? (rng() > 0.35 ? '#ec8318' : '#f2ae24')
+            : '#a82256';
+          const flMat = new THREE.MeshStandardMaterial({
+            color: col,
+            emissive: style === 'marigold' ? '#361602' : '#240512',
+            roughness: 0.76
+          });
+          const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.042 + rng() * 0.015, 0), flMat);
+          fl.position.set(
+            Math.cos(a) * (0.12 + rng() * 0.12),
+            0.38 + len * 0.96,
+            Math.sin(a) * (0.12 + rng() * 0.12)
+          );
+          g.add(fl);
+        }
+      }
+      rooftopGroup.add(g);
+    }
+
+    addDetailedPottedPlant(-6.1, -5.05, 1.18, 'marigold');
+    addDetailedPottedPlant(-5.95, -4.2, 0.86, 'bougainvillea');
+    addDetailedPottedPlant(5.95, -5.0, 1.25, 'marigold');
+    addDetailedPottedPlant(5.15, -5.25, 0.92, 'leaf');
+    addDetailedPottedPlant(6.05, -3.95, 1.05, 'bougainvillea');
+    addDetailedPottedPlant(-2.15, 5.05, 1.22, 'marigold');
+
+    // --- Authentic Kathmandu Rooftop Utility Corner (Ribbed Hilltake Tank + Solar Water Heater) ---
+    const utilityGroup = new THREE.Group();
+    utilityGroup.position.set(5.35, 0, 4.35);
+    rooftopGroup.add(utilityGroup);
+
+    const tankPlinth = new THREE.Mesh(new THREE.BoxGeometry(1.52, 0.44, 1.52), copingMat);
+    tankPlinth.position.y = 0.22;
+    tankPlinth.castShadow = true;
+    utilityGroup.add(tankPlinth);
+
+    const tankMat = new THREE.MeshStandardMaterial({
+      color: '#171b22',
+      roughness: 0.42,
+      metalness: 0.22,
+      envMapIntensity: 1.1
+    });
+    const tankCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.60, 0.60, 1.32, 24), tankMat);
+    tankCyl.position.y = 1.10;
+    tankCyl.castShadow = true;
+    utilityGroup.add(tankCyl);
+
+    for (let i = 0; i < 4; i++) {
+      const rib = new THREE.Mesh(new THREE.TorusGeometry(0.605, 0.026, 8, 24), tankMat);
+      rib.rotation.x = Math.PI / 2;
+      rib.position.y = 0.68 + i * 0.28;
+      utilityGroup.add(rib);
+    }
+    const tankLid = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.12, 16), tankMat);
+    tankLid.position.y = 1.80;
+    utilityGroup.add(tankLid);
+
+    // PVC water plumbing pipes running off tank
+    const pvcMat = new THREE.MeshStandardMaterial({ color: '#7b8085', roughness: 0.55 });
+    const pipeVert = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.2, 8), pvcMat);
+    pipeVert.position.set(-0.68, 0.62, 0);
+    utilityGroup.add(pipeVert);
+    const pipeHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.35, 8), pvcMat);
+    pipeHoriz.rotation.z = Math.PI / 2;
+    pipeHoriz.position.set(-0.56, 0.54, 0);
+    utilityGroup.add(pipeHoriz);
+
+    // Classic Kathmandu Rooftop Evacuated-Tube Solar Water Heater beside tank
+    const solarGroup = new THREE.Group();
+    solarGroup.position.set(-2.35, 0, 0.15);
+    utilityGroup.add(solarGroup);
+
+    // Galvanized steel angled stand
+    for (const sx of [-0.75, 0.75]) {
+      const legFront = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.55, 0.045), darkIronMat);
+      legFront.position.set(sx, 0.275, -0.55);
+      solarGroup.add(legFront);
+      const legBack = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.32, 0.045), darkIronMat);
+      legBack.position.set(sx, 0.66, 0.52);
+      solarGroup.add(legBack);
+    }
+    // White insulated horizontal thermal drum
+    const solarDrum = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.22, 1.72, 18),
+      new THREE.MeshStandardMaterial({ color: '#d6d2c8', roughness: 0.45, metalness: 0.35 })
+    );
+    solarDrum.rotation.z = Math.PI / 2;
+    solarDrum.position.set(0, 1.42, 0.48);
+    solarDrum.castShadow = true;
+    solarGroup.add(solarDrum);
+
+    // Dark blue reflective vacuum glass collector tubes
+    const glassTubeMat = new THREE.MeshStandardMaterial({
+      color: '#11223a',
+      roughness: 0.12,
+      metalness: 0.85,
+      envMapIntensity: 1.8
+    });
+    for (let t = 0; t < 11; t++) {
+      const tx = -0.72 + t * 0.144;
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.45, 8), glassTubeMat);
+      tube.position.set(tx, 0.88, -0.05);
+      tube.rotation.x = 0.86;
+      solarGroup.add(tube);
+    }
+
+    // --- Bamboo Prayer Flag Poles Lashed to Parapet Corners ---
+    const bambooMat = new THREE.MeshStandardMaterial({ color: '#7c6a48', roughness: 0.82 });
+    const poleDefs = [
+      { x: -6.86, z: -5.78, h: 5.10, tiltX: -0.03, tiltZ:  0.035 },
+      { x:  6.86, z: -5.78, h: 4.72, tiltX: -0.02, tiltZ: -0.04 },
+      { x:  6.86, z:  2.55, h: 4.55, tiltX:  0.03, tiltZ: -0.03 },
+      { x: -6.86, z:  5.25, h: 5.25, tiltX:  0.02, tiltZ:  0.02 }
+    ];
+    for (const p of poleDefs) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.048, p.h, 8), bambooMat);
+      pole.position.set(p.x, p.h * 0.5 + 0.1, p.z);
+      pole.rotation.set(p.tiltX, 0, p.tiltZ);
+      pole.castShadow = true;
+      rooftopGroup.add(pole);
+
+      // Bamboo culm rings
+      for (let ny = 1.0; ny < p.h; ny += 0.68) {
+        const node = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.008, 6, 10), bambooMat);
+        node.rotation.x = Math.PI / 2;
+        node.position.set(p.x, ny, p.z);
+        rooftopGroup.add(node);
+      }
+    }
+
+    // =========================================================================
+    // SECTION 09: HERO RIPPLING TIBETAN PRAYER FLAGS (Custom Cloth Physics Shader)
+    // =========================================================================
+    const prayerFlagTex = createPrayerFlagTexture();
+
+    // Sun-weathered Tibetan 5-Element Cloth Palette: Blue, White, Red, Green, Yellow
+    const FLAG_PALETTE = [
+      new THREE.Color('#28548d'),
+      new THREE.Color('#e4dccd'),
+      new THREE.Color('#b43129'),
+      new THREE.Color('#2b7449'),
+      new THREE.Color('#d89d28')
+    ];
+
+    function buildPrayerFlagSystem(lines, options = {}) {
+      const {
+        flagW = 0.34,
+        flagH = 0.43,
+        gap = 0.055,
+        segX = 6,
+        segY = 7,
+        sag = 0.62,
+        withRopes = true,
+        waveAmp = 0.25
+      } = options;
+
+      const positions = [];
+      const normals = [];
+      const localUVs = [];
+      const flagColors = [];
+      const flagSeeds = [];
+      const indices = [];
+
+      const ropeGroup = new THREE.Group();
+      const ropeMat = new THREE.MeshStandardMaterial({ color: '#4c4134', roughness: 0.96 });
+      let vertexOffset = 0;
+
+      for (const line of lines) {
+        const pA = line.start;
+        const pB = line.end;
+        const lineSag = line.sag !== undefined ? line.sag : sag;
+        const totalLen = pA.distanceTo(pB);
+        const dir = new THREE.Vector3().subVectors(pB, pA).normalize();
+
+        const curvePts = [];
+        for (let i = 0; i <= 22; i++) {
+          const t = i / 22;
+          const pt = new THREE.Vector3().lerpVectors(pA, pB, t);
+          pt.y -= Math.sin(t * Math.PI) * lineSag;
+          curvePts.push(pt);
+        }
+        const curve = new THREE.CatmullRomCurve3(curvePts);
+
+        if (withRopes) {
+          const tube = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, 26, 0.011, 5, false),
+            ropeMat
+          );
+          ropeGroup.add(tube);
+        }
+
+        const stepDist = flagW + gap;
+        const count = Math.max(2, Math.floor((totalLen - 0.45) / stepDist));
+        const baseNormal = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+
+        for (let f = 0; f < count; f++) {
+          const tMid = 0.025 + ((f + 0.5) / count) * 0.95;
+          const t0 = Math.max(0, tMid - (flagW * 0.5) / totalLen);
+          const t1 = Math.min(1, tMid + (flagW * 0.5) / totalLen);
+
+          const topA = curve.getPoint(t0);
+          const topB = curve.getPoint(t1);
+          const col = FLAG_PALETTE[(f + (line.colorOffset || 0)) % 5];
+          const seed = rng() * 120.0;
+
+          for (let iy = 0; iy <= segY; iy++) {
+            const v = 1.0 - iy / segY;
+            for (let ix = 0; ix <= segX; ix++) {
+              const u = ix / segX;
+              const px = THREE.MathUtils.lerp(topA.x, topB.x, u);
+              const py = THREE.MathUtils.lerp(topA.y, topB.y, u) - (1.0 - v) * flagH;
+              const pz = THREE.MathUtils.lerp(topA.z, topB.z, u);
+
+              positions.push(px, py, pz);
+              normals.push(baseNormal.x, baseNormal.y, baseNormal.z);
+              localUVs.push(u, v);
+              flagColors.push(col.r, col.g, col.b);
+              flagSeeds.push(seed);
+            }
+          }
+
+          for (let iy = 0; iy < segY; iy++) {
+            for (let ix = 0; ix < segX; ix++) {
+              const a = vertexOffset + iy * (segX + 1) + ix;
+              const b = a + 1;
+              const c = a + (segX + 1);
+              const d = c + 1;
+              indices.push(a, c, b, b, c, d);
+            }
+          }
+          vertexOffset += (segX + 1) * (segY + 1);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      geo.setAttribute('aLocalUV', new THREE.Float32BufferAttribute(localUVs, 2));
+      geo.setAttribute('aFlagColor', new THREE.Float32BufferAttribute(flagColors, 3));
+      geo.setAttribute('aFlagSeed', new THREE.Float32BufferAttribute(flagSeeds, 1));
+      geo.setIndex(indices);
+
+      const mat = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide,
+        uniforms: {
+          uTime: sharedUniforms.uTime,
+          uDayFactor: sharedUniforms.uDayFactor,
+          uFogColor: sharedUniforms.uFogColor,
+          uFogDensity: sharedUniforms.uFogDensity,
+          uSunDir: sharedUniforms.uSunDir,
+          uMoonDir: sharedUniforms.uMoonDir,
+          uWindStrength: sharedUniforms.uWindStrength,
+          uTex: { value: prayerFlagTex },
+          uWaveAmp: { value: waveAmp }
+        },
+        vertexShader: /* glsl */`
+          attribute vec2 aLocalUV;
+          attribute vec3 aFlagColor;
+          attribute float aFlagSeed;
+
+          uniform float uTime;
+          uniform float uWindStrength;
+          uniform float uWaveAmp;
+
+          varying vec2 vLocalUV;
+          varying vec3 vColor;
+          varying vec3 vWorldPos;
+          varying vec3 vWorldNormal;
+          varying float vFogDepth;
+
+          void main() {
+            vLocalUV = aLocalUV;
+            vColor = aFlagColor;
+
+            vec3 pos = position;
+            float pin = pow(1.0 - aLocalUV.y, 1.32);
+
+            // Prevailing Kathmandu valley breeze blowing across the terrace
+            vec3 windDir = normalize(vec3(0.76, 0.14, -0.63));
+            float wPow = uWindStrength;
+
+            // Layered wind gusts + high-frequency trailing-edge whip
+            float gustEnvelope = 0.58 + 0.42 * sin(uTime * 0.78 + pos.x * 0.16 + pos.z * 0.12);
+            float microGust    = 0.80 + 0.20 * sin(uTime * 2.15 - pos.x * 0.35 + aFlagSeed * 0.2);
+            float gust = gustEnvelope * microGust * wPow;
+
+            float wave1 = sin(pos.x * 0.62 + pos.z * 0.42 - uTime * (2.6 + wPow * 0.8) + aFlagSeed * 0.3);
+            float wave2 = sin(aLocalUV.y * 6.2 - uTime * (5.8 + wPow * 2.2) + aFlagSeed * 2.1 + aLocalUV.x * 2.6);
+            float wave3 = cos(aLocalUV.x * 8.0 - uTime * (8.5 + wPow * 3.0) + aFlagSeed * 4.7);
+
+            float disp = (wave1 * 0.55 + wave2 * 0.31 + wave3 * 0.14) * uWaveAmp * gust * pin;
+            float steadyBlow = 0.56 * uWaveAmp * gust * pin;
+
+            pos += windDir * (steadyBlow + disp);
+            // Realistic billowing arc lift
+            pos.y += abs(steadyBlow + disp) * 0.28 * pin;
+
+            // Perturbed cloth normal so moonlight, golden sun & warm lamps catch crisp fabric folds
+            float slopeY = cos(aLocalUV.y * 6.2 - uTime * (5.8 + wPow * 2.2) + aFlagSeed * 2.1) * 0.62 * pin * wPow;
+            float slopeX = sin(aLocalUV.x * 8.0 - uTime * (8.5 + wPow * 3.0) + aFlagSeed * 4.7) * 0.36 * pin * wPow;
+            vec3 n = normalize(normal + windDir * slopeY + vec3(slopeX, 0.18 * pin, -slopeX));
+
+            vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+            vWorldPos = worldPos.xyz;
+            vWorldNormal = normalize(mat3(modelMatrix) * n);
+
+            vec4 mvPos = viewMatrix * worldPos;
+            vFogDepth = -mvPos.z;
+            gl_Position = projectionMatrix * mvPos;
+          }
+        `,
+        fragmentShader: /* glsl */`
+          uniform sampler2D uTex;
+          uniform float uDayFactor;
+          uniform vec3 uFogColor;
+          uniform float uFogDensity;
+          uniform vec3 uSunDir;
+          uniform vec3 uMoonDir;
+
+          varying vec2 vLocalUV;
+          varying vec3 vColor;
+          varying vec3 vWorldPos;
+          varying vec3 vWorldNormal;
+          varying float vFogDepth;
+
+          float hash(vec2 p) {
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+          }
+
+          void main() {
+            // Weathered frayed cotton threads along bottom edge
+            float fray = hash(vec2(floor(vLocalUV.x * 74.0), 1.0)) * 0.068;
+            if (vLocalUV.y < fray) discard;
+
+            vec3 printTex = texture2D(uTex, vLocalUV).rgb;
+            vec3 albedo = vColor * printTex;
+
+            vec3 N = normalize(vWorldNormal);
+            if (!gl_FrontFacing) N = -N;
+            vec3 V = normalize(cameraPosition - vWorldPos);
+
+            vec3 L = normalize(mix(uMoonDir, uSunDir, uDayFactor));
+            vec3 keyCol = mix(vec3(0.42, 0.56, 0.85), vec3(1.48, 1.04, 0.64), uDayFactor);
+            vec3 ambCol = mix(vec3(0.11, 0.14, 0.24), vec3(0.46, 0.52, 0.64), uDayFactor);
+
+            float ndl = max(dot(N, L), 0.0);
+            // Thin handloom cotton subsurface backlighting!
+            float sss = pow(max(dot(-V, L), 0.0), 2.4) * 0.78 + max(dot(-N, L), 0.0) * 0.45;
+            vec3 lit = albedo * (ambCol + keyCol * (ndl * 0.86 + sss * 0.76));
+
+            // Warm bounce from rooftop lanterns, butter lamps & café lattice window
+            float nightMult = 1.0 - uDayFactor * 0.86;
+            float dWarm = length(vWorldPos - vec3(-1.8, 1.9, -1.2));
+            float attenWarm = 1.0 / (1.0 + 0.028 * dWarm * dWarm);
+            lit += albedo * vec3(1.22, 0.68, 0.26) * attenWarm * 1.05 * nightMult;
+
+            // Warm temple glow on stupa's radial prayer flags
+            float dStupa = length(vWorldPos - vec3(5.5, 4.0, -68.0));
+            float attenStupa = 1.0 / (1.0 + 0.0036 * dStupa * dStupa);
+            lit += albedo * vec3(1.32, 0.92, 0.46) * attenStupa * 1.25 * nightMult;
+
+            // Matching exponential valley fog
+            float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
+            lit = mix(lit, uFogColor, clamp(fogFactor, 0.0, 1.0));
+
+            gl_FragColor = vec4(lit, 1.0);
+          }
+        `
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      const group = new THREE.Group();
+      group.add(mesh);
+      if (withRopes) group.add(ropeGroup);
+      return { group, mesh, material: mat };
+    }
+
+    const heroFlagLines = [
+      // Hero front arch framing Boudhanath Stupa
+      { start: new THREE.Vector3(-6.80, 4.92, -5.72), end: new THREE.Vector3(6.80, 4.58, -5.72), sag: 0.62, colorOffset: 0 },
+      // Secondary diagonal terrace line
+      { start: new THREE.Vector3(-6.80, 4.28, -5.72), end: new THREE.Vector3(6.80, 3.92, 2.50), sag: 0.56, colorOffset: 2 },
+      // Line from Newari pavilion corner to right-front bamboo pole
+      { start: new THREE.Vector3(-2.78, 3.44, 0.92),  end: new THREE.Vector3(6.80, 4.46, -5.72), sag: 0.44, colorOffset: 1 },
+      // Left side longitudinal line
+      { start: new THREE.Vector3(-6.80, 5.08, 5.18),  end: new THREE.Vector3(-6.80, 4.84, -5.72), sag: 0.50, colorOffset: 3 },
+      // Dramatic rooftop-to-rooftop lines crossing alleyway to neighboring Boudha houses
+      { start: new THREE.Vector3(6.80, 4.52, -5.72),  end: new THREE.Vector3(18.5, 1.25, -19.2), sag: 1.40, colorOffset: 4 },
+      { start: new THREE.Vector3(-6.80, 4.78, -5.72), end: new THREE.Vector3(-19.0, 0.95, -17.5), sag: 1.32, colorOffset: 1 }
+    ];
+
+    const heroFlags = buildPrayerFlagSystem(heroFlagLines, {
+      flagW: 0.34,
+      flagH: 0.43,
+      gap: 0.052,
+      segX: 6,
+      segY: 7,
+      waveAmp: 0.26,
+      withRopes: true
+    });
+    scene.add(heroFlags.group);
+
+    // =========================================================================
+    // SECTION 10: BOUDHANATH STUPA (Museum-Grade Architectural Hero Landmark)
+    // =========================================================================
+    const stupaGroup = new THREE.Group();
+    const STUPA_POS = new THREE.Vector3(5.5, -12.0, -68.0);
+    stupaGroup.position.copy(STUPA_POS);
+    scene.add(stupaGroup);
+
+    const domePBR = createStupaDomePBR();
+    const eyesTex = createBuddhaEyesTexture();
+
+    const stupaWhiteMat = new THREE.MeshStandardMaterial({
+      color: '#eee8dc',
+      emissive: new THREE.Color('#ffcf84'),
+      emissiveIntensity: 0.26,
+      roughness: 0.84,
+      metalness: 0.02
+    });
+
+    const stupaDomeMat = new THREE.MeshStandardMaterial({
+      map: domePBR.map,
+      bumpMap: domePBR.bumpMap,
+      bumpScale: 0.05,
+      emissive: new THREE.Color('#ffd38a'),
+      emissiveMap: domePBR.map,
+      emissiveIntensity: 0.38,
+      roughness: 0.78,
+      metalness: 0.03
+    });
+
+    const stupaGoldMat = new THREE.MeshStandardMaterial({
+      color: '#f2be44',
+      emissive: new THREE.Color('#ffba38'),
+      emissiveIntensity: 0.84,
+      roughness: 0.24,
+      metalness: 0.92,
+      envMapIntensity: 1.65
+    });
+
+    const stupaCrimsonMat = new THREE.MeshStandardMaterial({
+      color: '#7a1f18',
+      emissive: new THREE.Color('#4a120c'),
+      emissiveIntensity: 0.35,
+      roughness: 0.78
+    });
+
+    const harmikaFaceMat = new THREE.MeshStandardMaterial({
+      map: eyesTex,
+      emissive: new THREE.Color('#ffdc9a'),
+      emissiveMap: eyesTex,
+      emissiveIntensity: 0.66,
+      roughness: 0.62,
+      metalness: 0.06
+    });
+
+    // 1. Outer Circular Kora Circumambulation Wall with recessed Prayer Wheel niches
+    const outerWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(23.5, 24.0, 2.2, 48, 1, true),
+      stupaWhiteMat
+    );
+    outerWall.position.y = 1.1;
+    stupaGroup.add(outerWall);
+
+    // 2. Three Stepped Cruciform 20-Cornered Mandala Plinths (Authentic Boudhanath Geometry!)
+    const mandalaTiers = [
+      { w: 34.4, h: 3.1, y: 1.55 },
+      { w: 28.8, h: 2.7, y: 4.45 },
+      { w: 23.4, h: 2.4, y: 7.00 }
+    ];
+
+    for (const t of mandalaTiers) {
+      // Main square core
+      const core = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.w), stupaWhiteMat);
+      core.position.y = t.y;
+      stupaGroup.add(core);
+
+      // Stepped double mandala cross projections on all 4 cardinal axes
+      const p1a = new THREE.Mesh(new THREE.BoxGeometry(t.w + 3.4, t.h - 0.1, t.w * 0.62), stupaWhiteMat);
+      p1a.position.y = t.y - 0.05;
+      stupaGroup.add(p1a);
+      const p1b = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.62, t.h - 0.1, t.w + 3.4), stupaWhiteMat);
+      p1b.position.y = t.y - 0.05;
+      stupaGroup.add(p1b);
+
+      const p2a = new THREE.Mesh(new THREE.BoxGeometry(t.w + 5.6, t.h - 0.2, t.w * 0.34), stupaWhiteMat);
+      p2a.position.y = t.y - 0.1;
+      stupaGroup.add(p2a);
+      const p2b = new THREE.Mesh(new THREE.BoxGeometry(t.w * 0.34, t.h - 0.2, t.w + 5.6), stupaWhiteMat);
+      p2b.position.y = t.y - 0.1;
+      stupaGroup.add(p2b);
+
+      // Warm golden upper terrace cornice trim
+      const trim = new THREE.Mesh(
+        new THREE.BoxGeometry(t.w + 0.35, 0.24, t.w + 0.35),
+        new THREE.MeshStandardMaterial({
+          color: '#db9e38',
+          emissive: '#ffaa38',
+          emissiveIntensity: 0.58,
+          roughness: 0.45
+        })
+      );
+      trim.position.y = t.y + t.h * 0.5;
+      stupaGroup.add(trim);
+
+      // Miniature Corner Votive Chortens (Small white/gold stupas adorning mandala corners)
+      const chHalf = t.w * 0.46;
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const chBase = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.9, 1.15), stupaWhiteMat);
+          chBase.position.set(sx * chHalf, t.y + t.h * 0.5 + 0.45, sz * chHalf);
+          stupaGroup.add(chBase);
+
+          const chDome = new THREE.Mesh(new THREE.SphereGeometry(0.48, 10, 8), stupaWhiteMat);
+          chDome.position.set(sx * chHalf, t.y + t.h * 0.5 + 1.05, sz * chHalf);
+          stupaGroup.add(chDome);
+
+          const chSpire = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.95, 8), stupaGoldMat);
+          chSpire.position.set(sx * chHalf, t.y + t.h * 0.5 + 1.82, sz * chHalf);
+          stupaGroup.add(chSpire);
+        }
+      }
+    }
+
+    // Grand Front Ceremonial Entrance Archway & Staircase ascending the Mandala Base
+    const stairArch = new THREE.Group();
+    stairArch.position.set(0, 0, 17.5);
+    stupaGroup.add(stairArch);
+
+    const stairBlock = new THREE.Mesh(new THREE.BoxGeometry(4.8, 7.6, 4.6), stupaWhiteMat);
+    stairBlock.position.set(0, 3.8, -1.8);
+    stairArch.add(stairBlock);
+
+    const gateRoof = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.55, 2.8), stupaGoldMat);
+    gateRoof.position.set(0, 8.6, 0.2);
+    stairArch.add(gateRoof);
+
+    const gateLintel = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.8, 2.2), stupaCrimsonMat);
+    gateLintel.position.set(0, 7.9, 0.2);
+    stairArch.add(gateLintel);
+
+    // 3. Circular Dome Drum with Recessed Illuminated Meditation Niches (108 Dhyani Buddha niches)
+    const drumMesh = new THREE.Mesh(new THREE.CylinderGeometry(11.95, 12.25, 1.45, 56), stupaWhiteMat);
+    drumMesh.position.y = 8.45;
+    stupaGroup.add(drumMesh);
+
+    const nicheGlowMat = new THREE.MeshStandardMaterial({
+      color: '#ffe2aa',
+      emissive: new THREE.Color('#ffaa38'),
+      emissiveIntensity: 2.2,
+      roughness: 0.4
+    });
+    const nicheGeo = new THREE.BoxGeometry(0.52, 0.72, 0.18);
+    const numNiches = 36;
+    const nicheInst = new THREE.InstancedMesh(nicheGeo, nicheGlowMat, numNiches);
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < numNiches; i++) {
+      const a = (i / numNiches) * Math.PI * 2;
+      dummy.position.set(Math.cos(a) * 12.08, 8.48, Math.sin(a) * 12.08);
+      dummy.rotation.set(0, -a + Math.PI * 0.5, 0);
+      dummy.updateMatrix();
+      nicheInst.setMatrixAt(i, dummy.matrix);
+    }
+    stupaGroup.add(nicheInst);
+
+    // 4. Massive Whitewashed Hemispherical Dome (Anda)
+    const domeGeo = new THREE.SphereGeometry(11.75, 56, 32, 0, Math.PI * 2, 0, Math.PI * 0.54);
+    const domeMesh = new THREE.Mesh(domeGeo, stupaDomeMat);
+    domeMesh.position.y = 8.0;
+    stupaGroup.add(domeMesh);
+
+    // 5. Golden Crown Collar & Square Harmika with All-Seeing Buddha Eyes
+    const harmikaBase = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.65, 5.6), stupaGoldMat);
+    harmikaBase.position.y = 19.35;
+    stupaGroup.add(harmikaBase);
+
+    const harmikaMats = [
+      harmikaFaceMat, harmikaFaceMat,
+      stupaGoldMat,   stupaGoldMat,
+      harmikaFaceMat, harmikaFaceMat
+    ];
+    const harmikaMesh = new THREE.Mesh(new THREE.BoxGeometry(4.85, 3.55, 4.85), harmikaMats);
+    harmikaMesh.position.y = 21.35;
+    stupaGroup.add(harmikaMesh);
+
+    // Ornamental stepped golden roof over Harmika
+    const harmikaCornice1 = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.42, 5.6), stupaGoldMat);
+    harmikaCornice1.position.y = 23.3;
+    stupaGroup.add(harmikaCornice1);
+
+    const harmikaCornice2 = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.48, 4.6), stupaCrimsonMat);
+    harmikaCornice2.position.y = 23.75;
+    stupaGroup.add(harmikaCornice2);
+
+    // 6. Thirteen-Tiered Gilded Spire (13 Bhumis / Bodhisattva Stages)
+    for (let i = 0; i < 13; i++) {
+      const t = i / 12;
+      const rad = THREE.MathUtils.lerp(2.42, 0.54, t);
+      const stepY = 24.25 + i * 0.68;
+
+      const stepBox = new THREE.Mesh(
+        new THREE.CylinderGeometry(rad * 0.90, rad, 0.56, 4),
+        stupaGoldMat
+      );
+      stepBox.rotation.y = Math.PI * 0.25;
+      stepBox.position.y = stepY;
+      stupaGroup.add(stepBox);
+    }
+
+    // 7. Gilded Umbrella Canopy (Chattra), Hanging Wind Bells & Sacred Pinnacle (Gajur)
+    const spireAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.25, 3.5, 12), stupaGoldMat);
+    spireAxis.position.y = 33.9;
+    stupaGroup.add(spireAxis);
+
+    const lotusBase = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 0.72, 0.65, 20), stupaGoldMat);
+    lotusBase.position.y = 33.25;
+    stupaGroup.add(lotusBase);
+
+    const canopyDisk = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 1.98, 0.58, 28), stupaGoldMat);
+    canopyDisk.position.y = 34.1;
+    stupaGroup.add(canopyDisk);
+
+    const gajurOrb = new THREE.Mesh(new THREE.SphereGeometry(0.68, 18, 14), stupaGoldMat);
+    gajurOrb.position.y = 35.0;
+    stupaGroup.add(gajurOrb);
+
+    const gajurSpire = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.65, 14), stupaGoldMat);
+    gajurSpire.position.y = 36.15;
+    stupaGroup.add(gajurSpire);
+
+    // Warm Golden Temple Floodlight Aura Halos (atmospheric light scatter around Stupa at night)
+    const stupaGlowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: softGlowTex,
+      color: '#ffbe68',
+      transparent: true,
+      opacity: 0.36,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    }));
+    stupaGlowSprite.position.set(0, 18.2, 0);
+    stupaGlowSprite.scale.set(60, 48, 1);
+    stupaGroup.add(stupaGlowSprite);
+
+    const spireGlowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: softGlowTex,
+      color: '#ffd47e',
+      transparent: true,
+      opacity: 0.50,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    }));
+    spireGlowSprite.position.set(0, 29.0, 0);
+    spireGlowSprite.scale.set(24, 28, 1);
+    stupaGroup.add(spireGlowSprite);
+
+    // Hundreds of sparkling golden butter-lamp / LED lights lining the 3 Mandala Terraces
+    const stupaLampCoords = [];
+    for (const t of mandalaTiers) {
+      const half = t.w * 0.5 + 0.2;
+      const ly = t.y + t.h * 0.5 + 0.24;
+      const perSide = 11;
+      for (let i = 0; i <= perSide; i++) {
+        const u = -half + (i / perSide) * (half * 2);
+        stupaLampCoords.push(u, ly,  half,  u, ly, -half,  half, ly, u,  -half, ly, u);
+      }
+    }
+    const stupaLampGeo = new THREE.BufferGeometry();
+    stupaLampGeo.setAttribute('position', new THREE.Float32BufferAttribute(stupaLampCoords, 3));
+    const stupaLampMat = new THREE.PointsMaterial({
+      color: '#ffce78',
+      size: 0.95,
+      map: softGlowTex,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const stupaLamps = new THREE.Points(stupaLampGeo, stupaLampMat);
+    stupaGroup.add(stupaLamps);
+
+    // 24 Sweeping Radial Prayer Flag Cables cascading from Boudhanath's Golden Spire!
+    const stupaFlagLines = [];
+    const numRays = 24;
+    for (let i = 0; i < numRays; i++) {
+      const ang = (i / numRays) * Math.PI * 2 + 0.08;
+      const topR = 0.82;
+      const botR = 16.8 + (i % 2) * 1.4;
+      stupaFlagLines.push({
+        start: new THREE.Vector3(
+          STUPA_POS.x + Math.cos(ang) * topR,
+          STUPA_POS.y + 33.2,
+          STUPA_POS.z + Math.sin(ang) * topR
+        ),
+        end: new THREE.Vector3(
+          STUPA_POS.x + Math.cos(ang) * botR,
+          STUPA_POS.y + 8.6,
+          STUPA_POS.z + Math.sin(ang) * botR
+        ),
+        sag: 2.5,
+        colorOffset: i % 5
+      });
+    }
+    const stupaRadialFlags = buildPrayerFlagSystem(stupaFlagLines, {
+      flagW: 0.48,
+      flagH: 0.52,
+      gap: 0.14,
+      segX: 2,
+      segY: 2,
+      waveAmp: 0.34,
+      withRopes: false
+    });
+    scene.add(stupaRadialFlags.group);
+
+    // =========================================================================
+    // SECTION 11: RICH KATHMANDU URBAN FABRIC (Boudha Kora Houses, Monasteries & Wires)
+    // =========================================================================
+    const cityGroup = new THREE.Group();
+    scene.add(cityGroup);
+
+    // Valley ground floor at street level y = -12
+    const valleyFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(620, 620),
+      new THREE.MeshStandardMaterial({ color: '#181412', roughness: 0.98 })
+    );
+    valleyFloor.rotation.x = -Math.PI / 2;
+    valleyFloor.position.y = -12.0;
+    cityGroup.add(valleyFloor);
+
+    // 6 Authentic Kathmandu Architectural Facade Archetypes
+    const facadeStyles = [
+      { baseColor: '#8d7560', trimColor: '#281d18', floors: 5, cols: 4, isNewari: false, isMonastery: false },
+      { baseColor: '#7c4c3d', trimColor: '#24140e', floors: 4, cols: 4, isNewari: true,  isMonastery: false },
+      { baseColor: '#998b78', trimColor: '#213448', floors: 5, cols: 5, isNewari: false, isMonastery: false },
+      { baseColor: '#6d6760', trimColor: '#242220', floors: 6, cols: 4, isNewari: false, isMonastery: false },
+      { baseColor: '#d9cbb6', trimColor: '#5e1a14', floors: 4, cols: 4, isNewari: false, isMonastery: true  }, // Tibetan Gomba Monastery!
+      { baseColor: '#916d52', trimColor: '#281b12', floors: 5, cols: 3, isNewari: true,  isMonastery: false }
+    ];
+
+    const cityFacadeMats = facadeStyles.map((st, idx) => {
+      const tex = createCityBuildingTextures(idx * 23, st);
+      return {
+        style: st,
+        mat: new THREE.MeshStandardMaterial({
+          map: tex.map,
+          emissive: new THREE.Color('#ffffff'),
+          emissiveMap: tex.emissiveMap,
+          emissiveIntensity: 1.42,
+          roughness: 0.88,
+          metalness: 0.04
+        })
+      };
+    });
+
+    const cityRoofMat    = new THREE.MeshStandardMaterial({ color: '#423c37', roughness: 0.92 });
+    const miniTankBlack  = new THREE.MeshStandardMaterial({ color: '#181c24', roughness: 0.52 });
+    const miniTankBlue   = new THREE.MeshStandardMaterial({ color: '#194266', roughness: 0.50 });
+    const monasteryRoofMat = new THREE.MeshStandardMaterial({ color: '#78221a', roughness: 0.78 });
+
+    const roofAnchorPoints = []; // Used to string authentic Kathmandu overhead utility wires!
+
+    function addKathmanduBuilding(x, z, w, d, h, rotY = 0, forceMonastery = false) {
+      const b = new THREE.Group();
+      b.position.set(x, -12.0, z);
+      b.rotation.y = rotY;
+
+      const pick = forceMonastery
+        ? cityFacadeMats[4]
+        : cityFacadeMats[Math.floor(rng() * cityFacadeMats.length)];
+      const fMat = pick.mat;
+
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        [fMat, fMat, cityRoofMat, cityRoofMat, fMat, fMat]
+      );
+      body.position.y = h * 0.5;
+      b.add(body);
+
+      // Rooftop parapet
+      const par = new THREE.Mesh(new THREE.BoxGeometry(w + 0.18, 0.48, d + 0.18), cityRoofMat);
+      par.position.y = h + 0.24;
+      b.add(par);
+
+      if (pick.style.isMonastery) {
+        // Ornate Tibetan Gomba Monastery Golden Roof Pavilion & Dharma Wheel Finial!
+        const gombaTop = new THREE.Mesh(new THREE.BoxGeometry(w * 0.62, 1.4, d * 0.62), monasteryRoofMat);
+        gombaTop.position.y = h + 0.7;
+        b.add(gombaTop);
+
+        const goldEave = new THREE.Mesh(new THREE.ConeGeometry(Math.min(w, d) * 0.44, 1.25, 4), stupaGoldMat);
+        goldEave.rotation.y = Math.PI * 0.25;
+        goldEave.position.y = h + 2.02;
+        b.add(goldEave);
+
+        const ganjira = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 0.95, 10), stupaGoldMat);
+        ganjira.position.y = h + 2.95;
+        b.add(ganjira);
+      } else if (pick.style.isNewari && rng() > 0.45) {
+        // Sloped terracotta Newari gable roof
+        const roofCone = new THREE.Mesh(
+          new THREE.ConeGeometry(Math.max(w, d) * 0.72, 2.2, 4),
+          jhingatiMat
+        );
+        roofCone.rotation.y = Math.PI * 0.25;
+        roofCone.position.y = h + 1.1;
+        b.add(roofCone);
+      } else {
+        // Typical Kathmandu rooftop clutter: stairwell penthouse, ribbed water tank, solar panel or railing
+        if (rng() > 0.28) {
+          const sh = 1.65 + rng() * 1.15;
+          const sw = Math.min(w * 0.42, 3.3);
+          const sd = Math.min(d * 0.42, 3.3);
+          const stair = new THREE.Mesh(new THREE.BoxGeometry(sw, sh, sd), fMat);
+          stair.position.set((rng() - 0.5) * (w - sw) * 0.55, h + sh * 0.5, (rng() - 0.5) * (d - sd) * 0.55);
+          b.add(stair);
+        }
+
+        if (rng() > 0.22) {
+          const tank = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.46, 0.46, 1.08, 10),
+            rng() > 0.70 ? miniTankBlue : miniTankBlack
+          );
+          tank.position.set((rng() - 0.5) * w * 0.48, h + 0.74, (rng() - 0.5) * d * 0.48);
+          b.add(tank);
+        }
+
+        if (rng() > 0.62) {
+          // Rooftop pole / TV antenna silhouette
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 2.8, 6), darkIronMat);
+          pole.position.set((rng() - 0.5) * w * 0.6, h + 1.4, (rng() - 0.5) * d * 0.6);
+          b.add(pole);
+        }
+      }
+
+      // Record midground rooftop anchor points for authentic overhead utility wires
+      if (z < -10 && z > -46 && Math.abs(x) < 34) {
+        roofAnchorPoints.push(new THREE.Vector3(x, -12.0 + h + 2.2, z));
+      }
+
+      cityGroup.add(b);
+    }
+
+    // 1. Iconic Curved Boudhanath Kora Ring of Cafes, Thanka Shops & Monasteries
+    const koraCount = 24;
+    for (let i = 0; i < koraCount; i++) {
+      const ang = (i / koraCount) * Math.PI * 2;
+      const dist = 30.2 + rng() * 4.5;
+      const bx = STUPA_POS.x + Math.cos(ang) * dist;
+      const bz = STUPA_POS.z + Math.sin(ang) * dist;
+
+      // Keep the direct front corridor slightly lower so the Stupa's mandala base & dome shine gloriously
+      const inFront = (bz > STUPA_POS.z + 18 && Math.abs(bx - STUPA_POS.x) < 17.5);
+      const h = inFront ? (7.2 + rng() * 2.0) : (10.8 + rng() * 4.4);
+      const isMonastery = !inFront && (i === 5 || i === 15 || i === 20);
+      addKathmanduBuilding(bx, bz, 7.6 + rng() * 2.8, 6.4 + rng() * 2.4, h, -ang + Math.PI * 0.5, isMonastery);
+    }
+
+    // 2. Dense 360-degree Kathmandu Urban Sea surrounding our rooftop
+    for (let i = 0; i < 155; i++) {
+      const ang = rng() * Math.PI * 2;
+      const rad = 16.5 + Math.pow(rng(), 0.70) * 118.0;
+      const bx = Math.cos(ang) * rad;
+      const bz = Math.sin(ang) * rad - 16.0;
+
+      // Keep clear of our rooftop building
+      if (Math.abs(bx) < 12.8 && Math.abs(bz) < 11.6) continue;
+      // Keep clear of Boudhanath Kora plaza
+      if (Math.hypot(bx - STUPA_POS.x, bz - STUPA_POS.z) < 33.5) continue;
+
+      // Preserve curated sightline corridor toward Boudhanath Stupa
+      const tLine = clamp01((-bz) / 68.0);
+      const lineX = THREE.MathUtils.lerp(0.0, STUPA_POS.x, tLine);
+      const inSightCorridor = (bz < -7.0 && bz > -64.0 && Math.abs(bx - lineX) < 13.0);
+
+      const w = 6.4 + rng() * 6.8;
+      const d = 6.4 + rng() * 6.8;
+      const h = inSightCorridor ? (6.4 + rng() * 3.5) : (8.8 + rng() * 8.4);
+
+      addKathmanduBuilding(bx, bz, w, d, h, (rng() - 0.5) * 0.34, rng() > 0.93 && !inSightCorridor);
+    }
+
+    // 3. Authentic Kathmandu Tangled Overhead Utility Poles & Catenary Power Wires across Midground Alleyways
+    const wireMat = new THREE.LineBasicMaterial({ color: '#1b1d26', transparent: true, opacity: 0.72 });
+    for (let i = 0; i < roofAnchorPoints.length; i++) {
+      const p1 = roofAnchorPoints[i];
+      // Connect to 1-2 nearby neighboring roofs
+      let connected = 0;
+      for (let j = i + 1; j < roofAnchorPoints.length && connected < 2; j++) {
+        const p2 = roofAnchorPoints[j];
+        const dist = p1.distanceTo(p2);
+        if (dist > 8 && dist < 24) {
+          connected++;
+          for (let strand = 0; strand < 2; strand++) {
+            const pts = [];
+            const sag = 0.75 + strand * 0.42;
+            for (let s = 0; s <= 12; s++) {
+              const t = s / 12;
+              const p = new THREE.Vector3().lerpVectors(p1, p2, t);
+              p.y -= Math.sin(t * Math.PI) * sag + strand * 0.25;
+              pts.push(p);
+            }
+            const geo = new THREE.BufferGeometry().setFromPoints(pts);
+            cityGroup.add(new THREE.Line(geo, wireMat));
+          }
+        }
+      }
+    }
+
+    // 4. Warm Street-Level Sodium-Vapor Alleyway Glow Sprites rising between Midground Buildings
+    const streetGlowSprites = [];
+    for (let i = 0; i < 18; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: softGlowTex,
+        color: '#ff8b30',
+        transparent: true,
+        opacity: 0.18,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }));
+      sp.position.set(
+        (rng() - 0.5) * 85,
+        -7.5 + rng() * 3.0,
+        -18 - rng() * 58
+      );
+      sp.scale.set(24 + rng() * 18, 12 + rng() * 8, 1);
+      scene.add(sp);
+      streetGlowSprites.push(sp);
+    }
+
+    // =========================================================================
+    // SECTION 12: HIMALAYAN FOOTHILLS & DISTANT SNOW-CAPPED LANGTANG PEAKS
+    // =========================================================================
+    const mountainMeshes = [];
+
+    function addValleyMountainRing(radius, baseH, peakH, nightCol, dayCol, seedVal, isSnowRange = false) {
+      const segs = 160;
+      const geo = new THREE.CylinderGeometry(radius, radius * 1.07, 1, segs, 10, true);
+      const pos = geo.attributes.position;
+      const colors = [];
+
+      const cBase = new THREE.Color('#1a2234');
+      const cSnow = new THREE.Color('#dde8f8');
+
+      for (let i = 0; i < pos.count; i++) {
+        const vx = pos.getX(i);
+        const vy = pos.getY(i);
+        const vz = pos.getZ(i);
+        const angle = Math.atan2(vz, vx);
+
+        // Northern Shivapuri & Langtang Himal rise dramatically behind Boudhanath Stupa (-Z direction)
+        const northBias = isSnowRange
+          ? Math.pow(Math.max(0, -Math.sin(angle)), 1.35)
+          : (0.62 + 0.56 * Math.max(0, -Math.sin(angle)));
+
+        const n1 = isSnowRange
+          ? ridgedFbm2D(Math.cos(angle) * 3.6 + seedVal, Math.sin(angle) * 3.6 + seedVal, 5)
+          : fbm2D(Math.cos(angle) * 2.5 + seedVal, Math.sin(angle) * 2.5 + seedVal, 4);
+
+        const n2 = fbm2D(Math.cos(angle) * 7.2 - seedVal, Math.sin(angle) * 7.2 + seedVal, 3);
+        const ridgeH = (baseH + (n1 * 0.78 + n2 * 0.22) * peakH) * northBias;
+
+        const normY = vy + 0.5; // 0 = base, 1 = summit
+        const finalY = -18.0 + normY * ridgeH;
+        pos.setY(i, finalY);
+
+        if (isSnowRange) {
+          const snowMix = smoothstep(0.62, 0.90, normY) * smoothstep(25.0, 62.0, ridgeH);
+          const col = cBase.clone().lerp(cSnow, snowMix);
+          colors.push(col.r, col.g, col.b);
+        }
+      }
+      geo.computeVertexNormals();
+
+      if (isSnowRange) {
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      }
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: nightCol,
+        vertexColors: isSnowRange,
+        roughness: isSnowRange ? 0.85 : 0.96,
+        metalness: 0.0,
+        side: THREE.BackSide
+      });
+
+      const mesh = new THREE.Mesh(geo, mat);
+      scene.add(mesh);
+      mountainMeshes.push({
+        mesh,
+        mat,
+        nightColor: new THREE.Color(nightCol),
+        dayColor: new THREE.Color(dayCol),
+        isSnowRange
+      });
+    }
+
+    // 3 Forested Kathmandu Valley Rim Rings (Shivapuri / Nagarjun / Phulchowki)
+    addValleyMountainRing(182, 16, 36, '#13192a', '#48566d', 2.9, false);
+    addValleyMountainRing(255, 26, 54, '#182136', '#697488', 9.4, false);
+    addValleyMountainRing(335, 36, 70, '#1e2842', '#898d98', 16.8, false);
+    // Majestic Far Snow-Capped Himalayan Peaks (Langtang / Jugal Himal silhouette kissing the northern sky!)
+    addValleyMountainRing(455, 42, 128, '#2d3a58', '#f2d4c2', 31.2, true);
+
+    // Distant Twinkling Hillside Village Lights nestled along the Kathmandu valley slopes (Night)
+    const hillLightPositions = [];
+    const hillLightColors = [];
+    for (let i = 0; i < 520; i++) {
+      const ang = rng() * Math.PI * 2;
+      const rad = 148 + rng() * 38;
+      const hx = Math.cos(ang) * rad;
+      const hz = Math.sin(ang) * rad;
+      const hy = -6 + Math.pow(rng(), 1.85) * 25;
+      hillLightPositions.push(hx, hy, hz);
+      const warm = rng() > 0.22;
+      hillLightColors.push(
+        warm ? 1.0 : 0.74,
+        warm ? (0.66 + rng() * 0.26) : 0.86,
+        warm ? 0.32 : 1.0
+      );
+    }
+    const hillLightGeo = new THREE.BufferGeometry();
+    hillLightGeo.setAttribute('position', new THREE.Float32BufferAttribute(hillLightPositions, 3));
+    hillLightGeo.setAttribute('color', new THREE.Float32BufferAttribute(hillLightColors, 3));
+    const hillLightMat = new THREE.PointsMaterial({
+      size: 1.7,
+      map: softGlowTex,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.82,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const hillLights = new THREE.Points(hillLightGeo, hillLightMat);
+    scene.add(hillLights);
+
+    // =========================================================================
+    // SECTION 13: VOLUMETRIC-STYLE DRIFTING KATHMANDU VALLEY MIST SHADER
+    // =========================================================================
+    const mistShaderMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uTime: sharedUniforms.uTime,
+        uDayFactor: sharedUniforms.uDayFactor,
+        uFogColor: sharedUniforms.uFogColor
+      },
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform float uTime;
+        uniform float uDayFactor;
+        uniform vec3 uFogColor;
+        varying vec2 vUv;
+
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        }
+
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(
+            mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+            mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+            f.y
+          );
+        }
+
+        float fbm(vec2 p) {
+          float v = 0.0, a = 0.5;
+          for (int i = 0; i < 4; i++) {
+            v += a * noise(p);
+            p = p * 2.02 + vec2(4.3, 2.7);
+            a *= 0.5;
+          }
+          return v;
+        }
+
+        void main() {
+          vec2 p = vUv * 2.0 - 1.0;
+          float radial = smoothstep(1.0, 0.12, length(p * vec2(1.0, 1.25)));
+          float n = fbm(vUv * 3.4 + vec2(uTime * 0.022, -uTime * 0.008));
+          float alpha = radial * smoothstep(0.28, 0.82, n) * mix(0.16, 0.13, uDayFactor);
+
+          vec3 nightMist = mix(uFogColor * 1.45, vec3(0.45, 0.32, 0.22), 0.28);
+          vec3 dayMist   = vec3(0.95, 0.78, 0.60);
+          vec3 col = mix(nightMist, dayMist, uDayFactor);
+
+          gl_FragColor = vec4(col, alpha);
+        }
+      `
+    });
+
+    const mistPlanes = [];
+    for (let i = 0; i < 16; i++) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(66 + rng() * 38, 22 + rng() * 14), mistShaderMat);
+      const baseX = (rng() - 0.5) * 105;
+      const baseY = -5.5 + rng() * 9.5;
+      const baseZ = -22.0 - rng() * 72.0;
+      m.position.set(baseX, baseY, baseZ);
+      scene.add(m);
+      mistPlanes.push({
+        mesh: m,
+        baseX,
+        speed: 0.35 + rng() * 0.65,
+        phase: rng() * Math.PI * 2
+      });
+    }
+
+    // =========================================================================
+    // SECTION 14: DRIFTING SKY LANTERNS (Glowing Translucent Khom Loy)
+    // =========================================================================
+    const lanternProfile = [
+      new THREE.Vector2(0.15, 0.00),
+      new THREE.Vector2(0.23, 0.14),
+      new THREE.Vector2(0.30, 0.42),
+      new THREE.Vector2(0.26, 0.68),
+      new THREE.Vector2(0.14, 0.80),
+      new THREE.Vector2(0.00, 0.84)
+    ];
+    const lanternGeo = new THREE.LatheGeometry(lanternProfile, 16);
+    const lanternRimGeo = new THREE.TorusGeometry(0.15, 0.008, 6, 14);
+    const lanternFlameGeo = new THREE.SphereGeometry(0.042, 8, 8);
+
+    const skyLanternMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uTime: sharedUniforms.uTime,
+        uDayFactor: sharedUniforms.uDayFactor,
+        uFogColor: sharedUniforms.uFogColor,
+        uFogDensity: sharedUniforms.uFogDensity
+      },
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        varying float vFogDepth;
+        void main() {
+          vUv = uv;
+          vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+          vFogDepth = -mvPos.z;
+          gl_Position = projectionMatrix * mvPos;
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform float uTime;
+        uniform float uDayFactor;
+        uniform vec3 uFogColor;
+        uniform float uFogDensity;
+
+        varying vec2 vUv;
+        varying float vFogDepth;
+
+        void main() {
+          float h = vUv.y;
+          // Luminous warm candle core at base -> glowing amber-saffron body -> deep burnt-orange crown
+          vec3 coreCol = vec3(3.4, 2.45, 1.20);
+          vec3 midCol  = vec3(2.35, 1.08, 0.28);
+          vec3 topCol  = vec3(1.18, 0.38, 0.10);
+
+          vec3 col = mix(coreCol, midCol, smoothstep(0.0, 0.45, h));
+          col = mix(col, topCol, smoothstep(0.42, 0.96, h));
+
+          // Vertical mulberry-paper ribs
+          float rib = smoothstep(0.92, 1.0, abs(sin(vUv.x * 3.14159 * 6.0)));
+          col *= (1.0 - rib * 0.20);
+
+          // Graceful dimming into delicate translucent paper during daytime
+          vec3 dayPaper = vec3(0.96, 0.76, 0.52);
+          col = mix(col, dayPaper, uDayFactor * 0.86);
+          float alpha = mix(0.97, 0.14, uDayFactor);
+
+          float fogFactor = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
+          col = mix(col, uFogColor, clamp(fogFactor * 0.62, 0.0, 1.0));
+
+          gl_FragColor = vec4(col, alpha);
+        }
+      `
+    });
+
+    const lanternWireMat = new THREE.MeshBasicMaterial({ color: '#1c1410' });
+    const lanternCoreMat = new THREE.MeshBasicMaterial({ color: '#fff2c4' });
+
+    const skyLanterns = [];
+    const LANTERN_COUNT = 52;
+
+    for (let i = 0; i < LANTERN_COUNT; i++) {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(lanternGeo, skyLanternMat));
+
+      const rim = new THREE.Mesh(lanternRimGeo, lanternWireMat);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.01;
+      g.add(rim);
+
+      const coreFlame = new THREE.Mesh(lanternFlameGeo, lanternCoreMat);
+      coreFlame.position.y = 0.07;
+      g.add(coreFlame);
+
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: softGlowTex,
+        color: '#ff9634',
+        transparent: true,
+        opacity: 0.46,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }));
+      halo.position.y = 0.28;
+      halo.scale.set(2.3, 2.3, 1);
+      g.add(halo);
+
+      const isClose = i < 8;
+      const x = isClose ? ((rng() - 0.5) * 24.0) : ((rng() - 0.5) * 125.0 + 4.0);
+      const z = isClose ? (-10.5 - rng() * 24.0) : (-20.0 - rng() * 82.0);
+      const yMin = -4.5;
+      const yMax = 56.0;
+      const y = yMin + rng() * (yMax - yMin);
+      const scale = isClose ? (0.72 + rng() * 0.32) : (0.92 + rng() * 0.80);
+
+      g.position.set(x, y, z);
+      g.scale.setScalar(scale);
+      scene.add(g);
+
+      skyLanterns.push({
+        group: g,
+        halo,
+        coreFlame,
+        baseX: x,
+        baseZ: z,
+        yMin,
+        yMax,
+        riseSpeed: 0.38 + rng() * 0.54,
+        swayAmp: 0.9 + rng() * 1.9,
+        swayFreq: 0.20 + rng() * 0.26,
+        phase: rng() * Math.PI * 2,
+        wobbleSpeed: 0.85 + rng() * 0.95,
+        baseScale: scale
+      });
+    }
+
+    // Subtle Floating Warm Dust Motes / Fireflies dancing near Rooftop Terrace
+    const moteCount = 65;
+    const motePositions = new Float32Array(moteCount * 3);
+    const moteSeeds = [];
+    for (let i = 0; i < moteCount; i++) {
+      const mx = (rng() - 0.5) * 14.0;
+      const my = 0.4 + rng() * 3.8;
+      const mz = (rng() - 0.5) * 11.0;
+      motePositions[i * 3]     = mx;
+      motePositions[i * 3 + 1] = my;
+      motePositions[i * 3 + 2] = mz;
+      moteSeeds.push({ x: mx, y: my, z: mz, p: rng() * Math.PI * 2, s: 0.4 + rng() * 0.7 });
+    }
+    const moteGeo = new THREE.BufferGeometry();
+    moteGeo.setAttribute('position', new THREE.BufferAttribute(motePositions, 3));
+    const moteMat = new THREE.PointsMaterial({
+      color: '#ffce84',
+      size: 0.085,
+      map: softGlowTex,
+      transparent: true,
+      opacity: 0.45,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const terraceMotes = new THREE.Points(moteGeo, moteMat);
+    scene.add(terraceMotes);
+
+    // =========================================================================
+    // SECTION 15: DAYTIME SOARING VALLEY PIGEONS / EAGLES AROUND BOUDHANATH
+    // =========================================================================
+    const birdFlock = [];
+    const birdGeo = new THREE.BufferGeometry();
+    birdGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+      0.0, 0.0,  0.14,   -0.42, 0.06, -0.08,   0.0, 0.0, -0.15,
+      0.0, 0.0,  0.14,    0.0,  0.0,  -0.15,   0.42, 0.06, -0.08
+    ], 3));
+
+    const birdMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      transparent: true,
+      uniforms: {
+        uTime: sharedUniforms.uTime,
+        uDayFactor: sharedUniforms.uDayFactor
+      },
+      vertexShader: /* glsl */`
+        uniform float uTime;
+        void main() {
+          vec3 p = position;
+          float flap = sin(uTime * 8.2 + modelMatrix[3].x * 0.65 + modelMatrix[3].z * 0.55);
+          p.y += abs(p.x) * flap * 0.48;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        uniform float uDayFactor;
+        void main() {
+          gl_FragColor = vec4(0.15, 0.14, 0.16, smoothstep(0.24, 0.85, uDayFactor) * 0.88);
+        }
+      `
+    });
+
+    for (let i = 0; i < 18; i++) {
+      const m = new THREE.Mesh(birdGeo, birdMat);
+      scene.add(m);
+      birdFlock.push({
+        mesh: m,
+        radius: 13.5 + rng() * 20.0,
+        height: 15.5 + rng() * 15.5,
+        speed: 0.15 + rng() * 0.15,
+        phase: rng() * Math.PI * 2
+      });
+    }
+
+    // =========================================================================
+    // SECTION 16: PROCEDURAL WEB AUDIO KATHMANDU ROOFTOP SOUNDSCAPE
+    // (100% Synthesized Web Audio API: Wind, Tibetan Singing Bowl, Distant Temple Bells)
+    // =========================================================================
+    class KathmanduSoundscape {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.windFilter = null;
+        this.windGain = null;
+        this.isPlaying = false;
+        this.bellTimer = null;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioCtx();
+
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.0;
+        this.masterGain.connect(this.ctx.destination);
+
+        // 1. Filtered Pink Noise — Himalayan rooftop breeze rustling prayer flags
+        const bufSize = this.ctx.sampleRate * 4;
+        const noiseBuf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const out = noiseBuf.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          out[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.032;
+          b6 = white * 0.115926;
+        }
+        const windSrc = this.ctx.createBufferSource();
+        windSrc.buffer = noiseBuf;
+        windSrc.loop = true;
+
+        this.windFilter = this.ctx.createBiquadFilter();
+        this.windFilter.type = 'bandpass';
+        this.windFilter.frequency.value = 340;
+        this.windFilter.Q.value = 1.4;
+
+        this.windGain = this.ctx.createGain();
+        this.windGain.gain.value = 0.42;
+
+        windSrc.connect(this.windFilter);
+        this.windFilter.connect(this.windGain);
+        this.windGain.connect(this.masterGain);
+        windSrc.start();
+
+        // 2. Warm Meditative Tibetan Temple Harmonic Drone (D2 + A2 + F#3 subtle shimmer)
+        const droneFreqs = [73.42, 110.0, 146.83, 220.0];
+        const droneGains = [0.055, 0.032, 0.018, 0.009];
+        droneFreqs.forEach((f, idx) => {
+          const osc = this.ctx.createOscillator();
+          osc.type = idx === 0 ? 'sine' : 'triangle';
+          osc.frequency.value = f;
+
+          const filt = this.ctx.createBiquadFilter();
+          filt.type = 'lowpass';
+          filt.frequency.value = 380;
+
+          const g = this.ctx.createGain();
+          g.gain.value = droneGains[idx];
+
+          // Gentle breathing LFO
+          const lfo = this.ctx.createOscillator();
+          lfo.frequency.value = 0.07 + idx * 0.031;
+          const lfoGain = this.ctx.createGain();
+          lfoGain.gain.value = droneGains[idx] * 0.35;
+          lfo.connect(lfoGain);
+          lfoGain.connect(g.gain);
+          lfo.start();
+
+          osc.connect(filt);
+          filt.connect(g);
+          g.connect(this.masterGain);
+          osc.start();
+        });
+      }
+
+      playSingingBowlChime() {
+        if (!this.ctx || !this.isPlaying) return;
+        const now = this.ctx.currentTime;
+        const baseChoices = [293.66, 329.63, 440.0, 587.33]; // D4, E4, A4, D5 pentatonic temple tones
+        const base = baseChoices[Math.floor(Math.random() * baseChoices.length)];
+        const partials = [1.0, 2.756, 5.404]; // Metallic bell / Tibetan bowl inharmonic partials
+
+        partials.forEach((ratio, idx) => {
+          const osc = this.ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = base * ratio + (Math.random() - 0.5) * 0.8;
+
+          const g = this.ctx.createGain();
+          const amp = (idx === 0 ? 0.038 : idx === 1 ? 0.016 : 0.006);
+          const dur = idx === 0 ? 7.5 : idx === 1 ? 4.2 : 2.1;
+
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.linearRampToValueAtTime(amp, now + 0.06);
+          g.gain.exponentialRampToValueAtTime(0.00008, now + dur);
+
+          osc.connect(g);
+          g.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + dur + 0.1);
+        });
+      }
+
+      scheduleNextBell() {
+        if (!this.isPlaying) return;
+        const delay = 4800 + Math.random() * 7500;
+        this.bellTimer = setTimeout(() => {
+          this.playSingingBowlChime();
+          this.scheduleNextBell();
+        }, delay);
+      }
+
+      toggle() {
+        this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        this.isPlaying = !this.isPlaying;
+        const now = this.ctx.currentTime;
+        this.masterGain.gain.cancelScheduledValues(now);
+        this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+
+        if (this.isPlaying) {
+          this.masterGain.gain.linearRampToValueAtTime(0.85, now + 1.6);
+          setTimeout(() => this.playSingingBowlChime(), 600);
+          this.scheduleNextBell();
+        } else {
+          this.masterGain.gain.linearRampToValueAtTime(0.0, now + 0.8);
+          if (this.bellTimer) clearTimeout(this.bellTimer);
+        }
+        return this.isPlaying;
+      }
+
+      updateWind(elapsed, windStrength) {
+        if (!this.ctx || !this.isPlaying || !this.windFilter) return;
+        const gust = 0.65 + 0.35 * Math.sin(elapsed * 0.78);
+        const freq = 220 + gust * windStrength * 290;
+        this.windFilter.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.25);
+        this.windGain.gain.setTargetAtTime(0.22 + gust * windStrength * 0.26, this.ctx.currentTime, 0.25);
+      }
+    }
+
+    const soundscape = new KathmanduSoundscape();
+
+    // =========================================================================
+    // SECTION 17: CINEMATIC CAMERA CHOREOGRAPHY & INTERACTIVE CONTROLS
+    // =========================================================================
+    const CAMERA_SHOTS = {
+      terrace: { pos: new THREE.Vector3(-4.35, 2.28, 5.15), target: new THREE.Vector3(1.55, 2.35, -14.5) },
+      chiya:   { pos: new THREE.Vector3(-2.55, 1.48, 3.05), target: new THREE.Vector3(1.25, 1.72, -14.0) },
+      stupa:   { pos: new THREE.Vector3( 1.95, 2.05, -2.65), target: new THREE.Vector3(5.45, 7.60, -68.0) },
+      flags:   { pos: new THREE.Vector3( 4.65, 2.92, 3.25), target: new THREE.Vector3(-0.85, 3.35, -12.0) }
+    };
+
+    const WIND_MODES = [
+      { label: 'Calm',   value: 0.48 },
+      { label: 'Breeze', value: 1.00 },
+      { label: 'Gusty',  value: 1.72 }
+    ];
+
+    let windModeIdx = 1;
+    let targetWind = 1.0;
+    let currentWind = 1.0;
+
+    let targetDayFactor = 0.0; // Starts in atmospheric Moonlit Night
+    let currentDayFactor = 0.0;
+
+    let isOrbiting = true;
+    let activeShotName = 'orbit';
+    let shotTransitioning = false;
+    let shotGoalPos = new THREE.Vector3();
+    let shotGoalTarget = new THREE.Vector3();
+    let orbitPhase = 0.0;
+    let userInteracting = false;
+
+    // UI Elements
+    const btnTime = document.getElementById('btn-time');
+    const iconMoon = document.getElementById('icon-moon');
+    const iconSun = document.getElementById('icon-sun');
+    const labelTime = document.getElementById('label-time');
+    const metaMood = document.getElementById('meta-mood');
+
+    const btnWind = document.getElementById('btn-wind');
+    const labelWind = document.getElementById('label-wind');
+
+    const btnAudio = document.getElementById('btn-audio');
+    const iconAudioOff = document.getElementById('icon-audio-off');
+    const iconAudioOn = document.getElementById('icon-audio-on');
+
+    const btnOrbit = document.getElementById('btn-orbit');
+    const orbitPlayIcon = document.getElementById('orbit-play-icon');
+    const orbitPauseIcon = document.getElementById('orbit-pause-icon');
+
+    const btnBars = document.getElementById('btn-bars');
+    const btnHideHud = document.getElementById('btn-hide-hud');
+    const btnRestoreHud = document.getElementById('btn-restore-hud');
+    const shotPills = document.querySelectorAll('.shot-pill');
+
+    function updateShotPills(activeName) {
+      activeShotName = activeName;
+      shotPills.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.shot === activeName);
+      });
+    }
+
+    function setOrbitState(active) {
+      isOrbiting = active;
+      btnOrbit.classList.toggle('active', active);
+      orbitPauseIcon.style.display = active ? 'block' : 'none';
+      orbitPlayIcon.style.display  = active ? 'none' : 'block';
+      if (active) {
+        shotTransitioning = false;
+        updateShotPills('orbit');
+      }
+    }
+
+    function toggleDayNight() {
+      targetDayFactor = targetDayFactor < 0.5 ? 1.0 : 0.0;
+      const isDay = targetDayFactor > 0.5;
+      iconMoon.style.display = isDay ? 'none' : 'block';
+      iconSun.style.display  = isDay ? 'block' : 'none';
+      labelTime.textContent  = isDay ? 'Golden Day' : 'Night';
+      metaMood.textContent   = isDay ? 'GOLDEN HOUR · HIMALAYAN HAZE' : 'NIGHT · MOONLIT HAZE';
+      btnTime.classList.toggle('active', isDay);
+    }
+
+    function cycleWind() {
+      windModeIdx = (windModeIdx + 1) % WIND_MODES.length;
+      targetWind = WIND_MODES[windModeIdx].value;
+      labelWind.textContent = WIND_MODES[windModeIdx].label;
+      btnWind.classList.toggle('active', windModeIdx > 0);
+    }
+
+    function toggleAudio() {
+      const playing = soundscape.toggle();
+      btnAudio.classList.toggle('active', playing);
+      iconAudioOff.style.display = playing ? 'none' : 'block';
+      iconAudioOn.style.display  = playing ? 'block' : 'none';
+    }
+
+    btnTime.addEventListener('click', toggleDayNight);
+    btnWind.addEventListener('click', cycleWind);
+    btnAudio.addEventListener('click', toggleAudio);
+    btnOrbit.addEventListener('click', () => setOrbitState(!isOrbiting));
+
+    btnBars.addEventListener('click', () => {
+      const on = document.body.classList.toggle('cinema-bars');
+      btnBars.classList.toggle('active', on);
+    });
+
+    btnHideHud.addEventListener('click', () => document.body.classList.add('hud-hidden'));
+    btnRestoreHud.addEventListener('click', () => document.body.classList.remove('hud-hidden'));
+
+    shotPills.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.shot;
+        if (key === 'orbit') {
+          setOrbitState(true);
+        } else if (CAMERA_SHOTS[key]) {
+          setOrbitState(false);
+          shotGoalPos.copy(CAMERA_SHOTS[key].pos);
+          shotGoalTarget.copy(CAMERA_SHOTS[key].target);
+          shotTransitioning = true;
+          updateShotPills(key);
+        }
+      });
+    });
+
+    controls.addEventListener('start', () => {
+      userInteracting = true;
+      shotTransitioning = false;
+      if (isOrbiting) setOrbitState(false);
+    });
+    controls.addEventListener('end', () => {
+      userInteracting = false;
+    });
+
+    // Cinema keyboard shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const k = e.key.toLowerCase();
+      if (k === 't') toggleDayNight();
+      else if (k === 'w') cycleWind();
+      else if (k === 'm') toggleAudio();
+      else if (k === ' ') { e.preventDefault(); setOrbitState(!isOrbiting); }
+      else if (k === 'b') {
+        const on = document.body.classList.toggle('cinema-bars');
+        btnBars.classList.toggle('active', on);
+      }
+      else if (k === 'h') document.body.classList.toggle('hud-hidden');
+      else if (k === '1') setOrbitState(true);
+      else if (k === '2') document.querySelector('[data-shot="terrace"]').click();
+      else if (k === '3') document.querySelector('[data-shot="chiya"]').click();
+      else if (k === '4') document.querySelector('[data-shot="stupa"]').click();
+      else if (k === '5') document.querySelector('[data-shot="flags"]').click();
+    });
+
+    // =========================================================================
+    // SECTION 18: DYNAMIC ATMOSPHERE INTERPOLATOR (Night <-> Dusk <-> Golden Day)
+    // =========================================================================
+    const tmpCol = new THREE.Color();
+    const tmpCol2 = new THREE.Color();
+    const keyDirVec = new THREE.Vector3();
+
+    const NIGHT_HEMI_SKY = new THREE.Color('#2c477d');
+    const DUSK_HEMI_SKY  = new THREE.Color('#6a456e');
+    const DAY_HEMI_SKY   = new THREE.Color('#9ec6eb');
+
+    const NIGHT_HEMI_GND = new THREE.Color('#2a1c14');
+    const DAY_HEMI_GND   = new THREE.Color('#70543e');
+
+    const NIGHT_KEY_COL  = new THREE.Color('#80a8ea');
+    const DUSK_KEY_COL   = new THREE.Color('#ff8446');
+    const DAY_KEY_COL    = new THREE.Color('#ffc078');
+
+    const tmpGoalCam = new THREE.Vector3();
+    const tmpGoalTgt = new THREE.Vector3();
+
+    function updateAtmosphere(dayT, elapsed) {
+      sharedUniforms.uDayFactor.value = dayT;
+      filmPass.uniforms.uDayFactor.value = dayT;
+
+      const dusk = Math.sin(dayT * Math.PI);
+
+      // Swap baked PMREM environment texture smoothly across twilight threshold
+      const wantDayEnv = dayT > 0.52;
+      if (wantDayEnv !== activeEnvIsDay) {
+        scene.environment = wantDayEnv ? envDayRT.texture : envNightRT.texture;
+        activeEnvIsDay = wantDayEnv;
+      }
+
+      // Three-phase atmospheric Fog (Night indigo -> Dusk plum -> Golden peach)
+      tmpCol.lerpColors(NIGHT_FOG_COLOR, DAY_FOG_COLOR, dayT);
+      tmpCol.lerp(DUSK_FOG_COLOR, dusk * 0.42);
+      scene.fog.color.copy(tmpCol);
+
+      const baseDens = THREE.MathUtils.lerp(NIGHT_FOG_DENSITY, DAY_FOG_DENSITY, dayT);
+      scene.fog.density = THREE.MathUtils.lerp(baseDens, DUSK_FOG_DENSITY, dusk * 0.3);
+      sharedUniforms.uFogColor.value.copy(tmpCol);
+      sharedUniforms.uFogDensity.value = scene.fog.density;
+
+      // Hemisphere & Key Directional Lights
+      tmpCol.lerpColors(NIGHT_HEMI_SKY, DAY_HEMI_SKY, dayT);
+      tmpCol.lerp(DUSK_HEMI_SKY, dusk * 0.42);
+      hemiLight.color.copy(tmpCol);
+      hemiLight.groundColor.lerpColors(NIGHT_HEMI_GND, DAY_HEMI_GND, dayT);
+      hemiLight.intensity = THREE.MathUtils.lerp(0.50, 1.02, dayT);
+
+      tmpCol2.lerpColors(NIGHT_KEY_COL, DAY_KEY_COL, dayT);
+      tmpCol2.lerp(DUSK_KEY_COL, dusk * 0.5);
+      keyLight.color.copy(tmpCol2);
+      keyLight.intensity = THREE.MathUtils.lerp(1.02, 2.85, dayT);
+      keyDirVec.lerpVectors(sharedUniforms.uMoonDir.value, sharedUniforms.uSunDir.value, dayT).normalize();
+      keyLight.position.copy(keyDirVec).multiplyScalar(90);
+
+      valleyBounceLight.intensity = THREE.MathUtils.lerp(0.28, 0.04, dayT);
+
+      // Warm Practical Rooftop Lights (flickering organically like real oil flames & warm tungsten)
+      const nightStrength = 1.0 - dayT * 0.88;
+      const fl1 = 0.94 + 0.055 * Math.sin(elapsed * 7.1) + 0.025 * Math.sin(elapsed * 16.3);
+      const fl2 = 0.92 + 0.075 * Math.sin(elapsed * 9.3 + 1.5);
+      const fl3 = 0.95 + 0.050 * Math.sin(elapsed * 5.8 + 3.2);
+
+      pavilionLight.intensity      = 5.8 * nightStrength * fl1;
+      latticeWindowLight.intensity = 3.8 * nightStrength * fl3;
+      tableLight.intensity         = 3.9 * nightStrength * fl2;
+      parapetLightL.intensity      = 2.8 * nightStrength * fl1;
+      parapetLightR.intensity      = 2.8 * nightStrength * fl2;
+
+      hangLanternGlowMat.emissiveIntensity = THREE.MathUtils.lerp(3.4, 0.35, dayT) * fl1;
+      tblLampGlowMat.emissiveIntensity     = THREE.MathUtils.lerp(3.9, 0.42, dayT) * fl2;
+      winGlowMat.emissiveIntensity         = THREE.MathUtils.lerp(3.5, 0.28, dayT) * fl3;
+
+      for (const fl of fairyLightMats) {
+        const tw = 0.90 + 0.10 * Math.sin(elapsed * 3.8 + fl.phase);
+        fl.mat.emissiveIntensity = THREE.MathUtils.lerp(3.6, 0.18, dayT) * tw;
+      }
+
+      // Boudhanath Stupa Night Architectural Uplighting vs. Natural Golden Sunlight
+      stupaWhiteMat.emissiveIntensity  = THREE.MathUtils.lerp(0.28, 0.02, dayT);
+      stupaDomeMat.emissiveIntensity   = THREE.MathUtils.lerp(0.40, 0.04, dayT);
+      stupaGoldMat.emissiveIntensity   = THREE.MathUtils.lerp(0.88, 0.12, dayT);
+      harmikaFaceMat.emissiveIntensity = THREE.MathUtils.lerp(0.70, 0.05, dayT);
+      nicheGlowMat.emissiveIntensity   = THREE.MathUtils.lerp(2.40, 0.08, dayT);
+      stupaGlowSprite.material.opacity = THREE.MathUtils.lerp(0.36, 0.00, dayT);
+      spireGlowSprite.material.opacity = THREE.MathUtils.lerp(0.50, 0.06, dayT);
+      stupaLampMat.opacity             = THREE.MathUtils.lerp(0.95, 0.00, dayT);
+
+      // Neighborhood Windows, Street Sodium Haze & Valley Hillside Village Lights
+      const winEmis = THREE.MathUtils.lerp(1.44, 0.03, dayT);
+      for (const c of cityFacadeMats) c.mat.emissiveIntensity = winEmis;
+      ownBuildingMat.emissiveIntensity = winEmis * 0.9;
+      hillLightMat.opacity = THREE.MathUtils.lerp(0.84, 0.0, dayT);
+
+      for (const sp of streetGlowSprites) {
+        sp.material.opacity = THREE.MathUtils.lerp(0.18, 0.0, dayT);
+      }
+
+      // Valley Rim Foothills & Alpenglow Himalayan Snow Peaks
+      for (const m of mountainMeshes) {
+        m.mat.color.lerpColors(m.nightColor, m.dayColor, dayT);
+        if (m.isSnowRange) {
+          // Subtle rose-pink Himalayan alpenglow blush at dusk & late afternoon!
+          m.mat.color.lerp(new THREE.Color('#f09c82'), dusk * 0.35);
+        }
+      }
+
+      // Subtle rooftop dust motes
+      moteMat.opacity = THREE.MathUtils.lerp(0.46, 0.24, dayT);
+
+      // Filmic Exposure & Soft Optical Bloom Calibration
+      renderer.toneMappingExposure = THREE.MathUtils.lerp(1.08, 0.96, dayT);
+      bloomPass.strength  = THREE.MathUtils.lerp(0.55, 0.22, dayT);
+      bloomPass.threshold = THREE.MathUtils.lerp(0.72, 0.88, dayT);
+    }
+
+    // =========================================================================
+    // SECTION 19: MAIN 60FPS CINEMATIC ANIMATION LOOP
+    // =========================================================================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+      sharedUniforms.uTime.value = elapsed;
+      filmPass.uniforms.uTime.value = elapsed;
+
+      // Smooth Day / Night & Wind strength transitions
+      if (Math.abs(targetDayFactor - currentDayFactor) > 0.0003) {
+        currentDayFactor += (targetDayFactor - currentDayFactor) * Math.min(1.0, dt * 1.45);
+      } else {
+        currentDayFactor = targetDayFactor;
+      }
+
+      currentWind += (targetWind - currentWind) * Math.min(1.0, dt * 2.4);
+      sharedUniforms.uWindStrength.value = currentWind;
+
+      updateAtmosphere(currentDayFactor, elapsed);
+      soundscape.updateWind(elapsed, currentWind);
+
+      // Camera Choreography: Slow Meditative Cinematic Orbit OR Smooth Preset Glide
+      if (isOrbiting && !userInteracting) {
+        orbitPhase += dt * 0.078; // Graceful, film-director pace (~80s arc cycle)
+        const az = Math.sin(orbitPhase - 0.52) * 0.58;
+        const rad = 8.45 + Math.cos(orbitPhase * 0.68) * 1.15;
+        const cx = Math.sin(az) * rad;
+        const cz = Math.cos(az) * rad * 0.72 - 0.65;
+        const cy = 2.34 + Math.sin(orbitPhase * 1.25) * 0.34;
+
+        tmpGoalCam.set(cx, cy, cz);
+        tmpGoalTgt.set(
+          1.60 + Math.sin(orbitPhase * 0.52) * 0.90,
+          2.42 + Math.cos(orbitPhase * 0.78) * 0.26,
+          -14.5
+        );
+
+        const k = Math.min(1.0, dt * 1.65);
+        camera.position.lerp(tmpGoalCam, k);
+        controls.target.lerp(tmpGoalTgt, k);
+      } else if (shotTransitioning && !userInteracting) {
+        const k = Math.min(1.0, dt * 2.8);
+        camera.position.lerp(shotGoalPos, k);
+        controls.target.lerp(shotGoalTarget, k);
+        if (camera.position.distanceTo(shotGoalPos) < 0.025 && controls.target.distanceTo(shotGoalTarget) < 0.025) {
+          shotTransitioning = false;
+        }
+      }
+      controls.update();
+
+      // 1. Gentle wind sway on hanging brass pavilion lantern
+      hangLanternGroup.rotation.z = Math.sin(elapsed * 1.35) * 0.042 * currentWind;
+      hangLanternGroup.rotation.x = Math.cos(elapsed * 1.02) * 0.028 * currentWind;
+
+      // 2. Meditative slow spin on Tibetan Mani Prayer Wheel
+      maniCylinder.rotation.y = elapsed * 0.42;
+
+      // 3. Flickering parapet brass butter lamps (Diyas)
+      const nightGlow = 1.0 - currentDayFactor * 0.84;
+      for (const d of diyaFlames) {
+        const fl = 0.85 + 0.25 * Math.sin(elapsed * 11.2 + d.phase) * Math.cos(elapsed * 6.5 + d.phase);
+        d.flame.scale.set(0.94, fl, 0.94);
+        d.flame.rotation.z = Math.sin(elapsed * 8.4 + d.phase) * 0.14 * currentWind;
+        d.glow.scale.setScalar(0.42 * fl);
+        d.glow.material.opacity = 0.84 * nightGlow;
+      }
+
+      // 4. Delicate rising steam wisps from hot Masala Chiya cups
+      for (const s of steamParticles) {
+        const cyc = (elapsed * 0.32 + s.phase) % 1.0;
+        s.sprite.position.set(
+          s.baseX + Math.sin(elapsed * 1.5 + s.phase * 5.0) * 0.04 * cyc + cyc * 0.05 * currentWind,
+          0.58 + cyc * 0.54,
+          s.baseZ + Math.cos(elapsed * 1.2 + s.phase * 4.0) * 0.035 * cyc
+        );
+        s.sprite.material.opacity = Math.sin(cyc * Math.PI) * 0.15;
+        const sc = 0.08 + cyc * 0.15;
+        s.sprite.scale.set(sc, sc * 1.3, 1);
+      }
+
+      // 5. Gracefully curling Tibetan Sandalwood Incense Smoke ribbon
+      for (const p of incenseSmokeParticles) {
+        const cyc = (elapsed * 0.22 + p.phase) % 1.0;
+        const driftX = cyc * 0.45 * currentWind + Math.sin(elapsed * 1.9 + cyc * 8.5) * 0.05 * cyc;
+        const driftZ = -cyc * 0.32 * currentWind + Math.cos(elapsed * 1.6 + cyc * 7.0) * 0.04 * cyc;
+        p.sprite.position.set(-0.398 + driftX, 0.67 + cyc * 1.15, 0.22 + driftZ);
+        p.sprite.material.opacity = Math.sin(cyc * Math.PI) * (1.0 - cyc * 0.5) * 0.16;
+        const sc = 0.045 + cyc * 0.24;
+        p.sprite.scale.set(sc, sc * 1.15, 1);
+      }
+
+      // 6. Drifting Translucent Paper Sky Lanterns ascending toward the Himalayan stars
+      for (const l of skyLanterns) {
+        l.group.position.y += l.riseSpeed * dt;
+        if (l.group.position.y > l.yMax) {
+          l.group.position.y = l.yMin;
+        }
+        const hNorm = (l.group.position.y - l.yMin) / (l.yMax - l.yMin);
+        const lifeScale = Math.sin(Math.min(hNorm * 6.0, 1.0) * Math.PI * 0.5) *
+                          (1.0 - Math.max(0.0, (hNorm - 0.80) / 0.20));
+        l.group.scale.setScalar(Math.max(0.001, l.baseScale * lifeScale));
+
+        l.group.position.x = l.baseX + Math.sin(elapsed * l.swayFreq + l.phase) * l.swayAmp + hNorm * 7.5 * currentWind;
+        l.group.position.z = l.baseZ + Math.cos(elapsed * l.swayFreq * 0.8 + l.phase) * l.swayAmp * 0.65;
+        l.group.rotation.z = Math.sin(elapsed * l.wobbleSpeed + l.phase) * 0.095;
+        l.group.rotation.x = Math.cos(elapsed * l.wobbleSpeed * 0.8 + l.phase) * 0.072;
+
+        const pulse = 0.88 + 0.12 * Math.sin(elapsed * 5.6 + l.phase * 3.0);
+        l.halo.material.opacity = 0.46 * (1.0 - currentDayFactor * 0.94) * lifeScale * pulse;
+        l.coreFlame.visible = currentDayFactor < 0.72;
+      }
+
+      // 7. Warm floating rooftop dust motes / subtle fireflies
+      const mAttr = moteGeo.attributes.position;
+      for (let i = 0; i < moteCount; i++) {
+        const s = moteSeeds[i];
+        mAttr.setXYZ(
+          i,
+          s.x + Math.sin(elapsed * 0.38 * s.s + s.p) * 0.45,
+          s.y + Math.sin(elapsed * 0.52 * s.s + s.p * 1.7) * 0.28,
+          s.z + Math.cos(elapsed * 0.34 * s.s + s.p) * 0.42
+        );
+      }
+      mAttr.needsUpdate = true;
+
+      // 8. Drifting low Kathmandu valley mist curtains
+      for (const mp of mistPlanes) {
+        mp.mesh.position.x = mp.baseX + Math.sin(elapsed * 0.038 * mp.speed + mp.phase) * 16.0;
+        mp.mesh.lookAt(camera.position.x, mp.mesh.position.y, camera.position.z);
+      }
+
+      // 9. Daytime soaring valley birds circling lazily around Boudhanath's golden spire
+      if (currentDayFactor > 0.18) {
+        for (const b of birdFlock) {
+          const a = elapsed * b.speed + b.phase;
+          b.mesh.position.set(
+            STUPA_POS.x + Math.cos(a) * b.radius,
+            b.height + Math.sin(elapsed * 0.72 + b.phase) * 2.0,
+            STUPA_POS.z + Math.sin(a) * b.radius
+          );
+          b.mesh.rotation.y = -a;
+          b.mesh.rotation.z = 0.24;
+        }
+      }
+
+      composer.render();
+    }
+
+    // =========================================================================
+    // SECTION 20: RESPONSIVE RESIZE & GRACEFUL CURTAIN REVEAL
+    // =========================================================================
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      bloomPass.setSize(w, h);
+      filmPass.uniforms.uResolution.value.set(w, h);
+    });
+
+    // Reveal scene smoothly after first frames warm up shaders & PMREM reflections
+    animate();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const curtain = document.getElementById('loading-curtain');
+        if (curtain) curtain.classList.add('hidden');
+      });
+    });
+  </script>
+</body>
+</html>

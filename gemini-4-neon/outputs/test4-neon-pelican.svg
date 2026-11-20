@@ -1,0 +1,958 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" role="img" aria-label="A pelican riding a bicycle through a neon city at night with reflections on wet asphalt and a flickering NEON sign">
+  <defs>
+    <!-- Minimal Filters: 1 crisp neon bloom + 1 vertical wet-asphalt reflection blur -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="wetBlur" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="2.5 8.5"/>
+    </filter>
+
+    <!-- Clip Paths -->
+    <clipPath id="roadClip">
+      <rect x="0" y="504" width="1200" height="216"/>
+    </clipPath>
+    <clipPath id="frameClip">
+      <rect x="0" y="0" width="1200" height="720"/>
+    </clipPath>
+
+    <!-- Sky & Atmosphere Gradients -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#040511"/>
+      <stop offset="48%" stop-color="#0b0d26"/>
+      <stop offset="82%" stop-color="#1c1138"/>
+      <stop offset="100%" stop-color="#2c1645"/>
+    </linearGradient>
+    <radialGradient id="cityHazeL" cx="24%" cy="55%" r="42%">
+      <stop offset="0%" stop-color="#ff1e8e" stop-opacity="0.28"/>
+      <stop offset="55%" stop-color="#8b1b7a" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#0b0d26" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cityHazeR" cx="84%" cy="52%" r="40%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.24"/>
+      <stop offset="60%" stop-color="#005e99" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#0b0d26" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="asphaltGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0d1b"/>
+      <stop offset="22%" stop-color="#101325"/>
+      <stop offset="65%" stop-color="#0a0d1a"/>
+      <stop offset="100%" stop-color="#05070f"/>
+    </linearGradient>
+
+    <!-- Building Gradients -->
+    <linearGradient id="bldgLeft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0b0c1c"/>
+      <stop offset="78%" stop-color="#14142b"/>
+      <stop offset="100%" stop-color="#291736"/>
+    </linearGradient>
+    <linearGradient id="bldgRight" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#102238"/>
+      <stop offset="25%" stop-color="#10152a"/>
+      <stop offset="100%" stop-color="#070914"/>
+    </linearGradient>
+    <linearGradient id="signBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#151226"/>
+      <stop offset="100%" stop-color="#0a0814"/>
+    </linearGradient>
+
+    <!-- Reflection & Light Beam Gradients -->
+    <linearGradient id="magentaPillar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff1e8e" stop-opacity="0.45"/>
+      <stop offset="45%" stop-color="#ff1e8e" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#ff1e8e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="cyanPillar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.42"/>
+      <stop offset="50%" stop-color="#00d2ff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#00aaff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="amberPillar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffae34" stop-opacity="0.34"/>
+      <stop offset="65%" stop-color="#ff6a00" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#ff6a00" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="headlightBeam" x1="0" y1="0.3" x2="1" y2="0.65">
+      <stop offset="0%" stop-color="#e8fdff" stop-opacity="0.65"/>
+      <stop offset="22%" stop-color="#8cf4ff" stop-opacity="0.28"/>
+      <stop offset="65%" stop-color="#38d9ff" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#00c8ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="headlightPool" x1="0" y1="0.5" x2="1" y2="0.5">
+      <stop offset="0%" stop-color="#b9fbff" stop-opacity="0.38"/>
+      <stop offset="55%" stop-color="#48e1ff" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#00c8ff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="tailGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff2e55" stop-opacity="0.95"/>
+      <stop offset="40%" stop-color="#ff003c" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ff003c" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Bicycle Metallic Gradients -->
+    <linearGradient id="frameTube" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5cf4ff"/>
+      <stop offset="22%" stop-color="#22435c"/>
+      <stop offset="68%" stop-color="#131c30"/>
+      <stop offset="100%" stop-color="#8c2668"/>
+    </linearGradient>
+    <linearGradient id="chromeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e4f9ff"/>
+      <stop offset="45%" stop-color="#6b8099"/>
+      <stop offset="80%" stop-color="#263147"/>
+      <stop offset="100%" stop-color="#d45ba0"/>
+    </linearGradient>
+
+    <!-- Pelican Realistic Shading Gradients -->
+    <linearGradient id="pelicanBody" x1="0.12" y1="0.08" x2="0.88" y2="0.92">
+      <stop offset="0%" stop-color="#ffd2eb"/>
+      <stop offset="20%" stop-color="#eef4fc"/>
+      <stop offset="56%" stop-color="#bac7dc"/>
+      <stop offset="82%" stop-color="#6b7a96"/>
+      <stop offset="100%" stop-color="#3c4663"/>
+    </linearGradient>
+    <linearGradient id="pelicanNeck" x1="0" y1="0.2" x2="1" y2="0.4">
+      <stop offset="0%" stop-color="#ff74bd"/>
+      <stop offset="18%" stop-color="#dfe6f2"/>
+      <stop offset="68%" stop-color="#f4f8ff"/>
+      <stop offset="92%" stop-color="#a8f5ff"/>
+      <stop offset="100%" stop-color="#53f0ff"/>
+    </linearGradient>
+    <linearGradient id="pelicanWing" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#f2f6fc"/>
+      <stop offset="42%" stop-color="#c3cfe3"/>
+      <stop offset="76%" stop-color="#5e6d8a"/>
+      <stop offset="100%" stop-color="#1e2538"/>
+    </linearGradient>
+    <linearGradient id="pelicanUpperBill" x1="0" y1="0" x2="1" y2="0.5">
+      <stop offset="0%" stop-color="#f8e3cf"/>
+      <stop offset="35%" stop-color="#e8c7b0"/>
+      <stop offset="75%" stop-color="#f0a875"/>
+      <stop offset="100%" stop-color="#d96748"/>
+    </linearGradient>
+    <linearGradient id="pelicanPouch" x1="0.15" y1="0" x2="0.65" y2="1">
+      <stop offset="0%" stop-color="#ffb84d"/>
+      <stop offset="42%" stop-color="#f27d30"/>
+      <stop offset="78%" stop-color="#c93e3c"/>
+      <stop offset="100%" stop-color="#7c1d45"/>
+    </linearGradient>
+    <linearGradient id="pelicanLegNear" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0%" stop-color="#c94b2c"/>
+      <stop offset="45%" stop-color="#f59238"/>
+      <stop offset="85%" stop-color="#ffc966"/>
+      <stop offset="100%" stop-color="#87f6ff"/>
+    </linearGradient>
+    <linearGradient id="pelicanLegFar" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0%" stop-color="#6b2528"/>
+      <stop offset="60%" stop-color="#b55726"/>
+      <stop offset="100%" stop-color="#d97b38"/>
+    </linearGradient>
+
+    <!-- Motion Streak Gradients -->
+    <linearGradient id="streakCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00f2ff" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#00f2ff" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streakMagenta" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ff1e8e" stop-opacity="0"/>
+      <stop offset="35%" stop-color="#ff3aa0" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#ffd4ec" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streakWhite" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="25%" stop-color="#d9f9ff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Reusable Bicycle Wheel Spokes & Rotor Symbol -->
+    <g id="wheelInner">
+      <!-- Metallic Alloy Rim -->
+      <circle cx="0" cy="0" r="76" fill="none" stroke="#36465e" stroke-width="4.5"/>
+      <circle cx="0" cy="0" r="73.5" fill="none" stroke="#7d96b8" stroke-width="1" stroke-dasharray="38 14 22 18" opacity="0.65"/>
+      <!-- 16 Realistic Crossed Spokes -->
+      <g stroke="#9eb4d1" stroke-width="1.15" opacity="0.62">
+        <line x1="0" y1="-73" x2="0" y2="73"/>
+        <line x1="-73" y1="0" x2="73" y2="0"/>
+        <line x1="-51.6" y1="-51.6" x2="51.6" y2="51.6"/>
+        <line x1="51.6" y1="-51.6" x2="-51.6" y2="51.6"/>
+        <line x1="-27.9" y1="-67.4" x2="27.9" y2="67.4"/>
+        <line x1="27.9" y1="-67.4" x2="-27.9" y2="67.4"/>
+        <line x1="-67.4" y1="-27.9" x2="67.4" y2="27.9"/>
+        <line x1="67.4" y1="-27.9" x2="-67.4" y2="27.9"/>
+      </g>
+      <!-- Valve Stem & Spoke Reflectors (makes rotation unmistakable) -->
+      <rect x="-1.5" y="61" width="3" height="12" rx="1" fill="#d0dce8"/>
+      <rect x="-5" y="-65" width="10" height="4.5" rx="2" fill="#00f2ff" opacity="0.9"/>
+      <rect x="-5" y="60.5" width="10" height="4.5" rx="2" fill="#ff3b9a" opacity="0.85"/>
+      <!-- Tire Sidewall Motion Ticks -->
+      <circle cx="0" cy="0" r="82" fill="none" stroke="#2c354c" stroke-width="2" stroke-dasharray="16 32"/>
+      <!-- Disc Brake Rotor & Hub -->
+      <circle cx="0" cy="0" r="22" fill="none" stroke="#62738c" stroke-width="3" stroke-dasharray="6 3"/>
+      <circle cx="0" cy="0" r="17" fill="none" stroke="#3c495e" stroke-width="1.5"/>
+      <line x1="-17" y1="0" x2="17" y2="0" stroke="#7c8fa8" stroke-width="1.8"/>
+      <line x1="0" y1="-17" x2="0" y2="17" stroke="#7c8fa8" stroke-width="1.8"/>
+      <circle cx="0" cy="0" r="9.5" fill="#1b2436" stroke="#99b3d4" stroke-width="2"/>
+      <circle cx="0" cy="0" r="4" fill="#d9ecff"/>
+    </g>
+
+    <!-- Reusable NEON Sign Letter Paths -->
+    <g id="neonLettersRaw" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <!-- N -->
+      <path id="ltrN1" d="M 130 223 L 130 162 Q 130 158 134 160 L 174 221 Q 178 223 178 219 L 178 158"/>
+      <!-- E -->
+      <path id="ltrE" d="M 244 158 L 204 158 Q 198 158 198 164 L 198 217 Q 198 223 204 223 L 244 223 M 200 190.5 L 235 190.5"/>
+      <!-- O -->
+      <path id="ltrO" d="M 289 158 C 306 158 314 170 314 190.5 C 314 211 306 223 289 223 C 272 223 264 211 264 190.5 C 264 170 272 158 289 158 Z"/>
+      <!-- N -->
+      <path id="ltrN2" d="M 336 223 L 336 162 Q 336 158 340 160 L 380 221 Q 384 223 384 219 L 384 158"/>
+    </g>
+  </defs>
+
+  <g clip-path="url(#frameClip)">
+    <!-- 1. NIGHT SKY & NEON ATMOSPHERE -->
+    <rect x="0" y="0" width="1200" height="515" fill="url(#skyGrad)"/>
+    <rect x="0" y="0" width="1200" height="515" fill="url(#cityHazeL)"/>
+    <rect x="0" y="0" width="1200" height="515" fill="url(#cityHazeR)"/>
+
+    <!-- Subtle High Night Clouds -->
+    <g opacity="0.14">
+      <ellipse cx="320" cy="88" rx="220" ry="26" fill="#702c8a"/>
+      <ellipse cx="890" cy="72" rx="250" ry="22" fill="#175e8a"/>
+      <ellipse cx="620" cy="118" rx="180" ry="18" fill="#46286e"/>
+    </g>
+
+    <!-- 2. DISTANT & MIDGROUND NEON SKYLINE -->
+    <!-- Far Skyline Layer -->
+    <g fill="#080a1c">
+      <rect x="20" y="190" width="85" height="320"/>
+      <rect x="125" y="130" width="90" height="380"/>
+      <rect x="235" y="175" width="76" height="335"/>
+      <rect x="330" y="110" width="95" height="400"/>
+      <rect x="445" y="155" width="82" height="355"/>
+      <rect x="540" y="92" width="108" height="418"/>
+      <polygon points="555,92 594,45 633,92"/>
+      <rect x="665" y="148" width="94" height="362"/>
+      <rect x="775" y="102" width="110" height="408"/>
+      <rect x="900" y="162" width="85" height="348"/>
+      <rect x="1000" y="118" width="98" height="392"/>
+      <rect x="1110" y="155" width="90" height="355"/>
+      <!-- Spire Antennas -->
+      <line x1="594" y1="45" x2="594" y2="18" stroke="#1e2442" stroke-width="2"/>
+      <line x1="828" y1="102" x2="828" y2="62" stroke="#1e2442" stroke-width="2"/>
+      <line x1="376" y1="110" x2="376" y2="74" stroke="#1e2442" stroke-width="1.5"/>
+    </g>
+
+    <!-- Blinking Aviation Beacons on Distant Spires -->
+    <circle cx="594" cy="18" r="2.6" fill="#ff2442" filter="url(#glow)">
+      <animate attributeName="opacity" values="1;1;0.15;0.15;1" keyTimes="0;0.38;0.45;0.88;1" dur="2.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="828" cy="62" r="2.2" fill="#ff2442" filter="url(#glow)">
+      <animate attributeName="opacity" values="0.15;0.15;1;1;0.15" keyTimes="0;0.42;0.5;0.86;1" dur="2.6s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Distant Illuminated Windows -->
+    <g opacity="0.55">
+      <g fill="#5be8ff">
+        <rect x="560" y="120" width="8" height="4"/><rect x="576" y="120" width="8" height="4"/><rect x="608" y="120" width="8" height="4"/>
+        <rect x="560" y="138" width="8" height="4"/><rect x="592" y="138" width="8" height="4"/><rect x="624" y="138" width="8" height="4"/>
+        <rect x="576" y="156" width="8" height="4"/><rect x="608" y="156" width="8" height="4"/>
+        <rect x="795" y="134" width="12" height="5"/><rect x="816" y="134" width="12" height="5"/><rect x="852" y="134" width="12" height="5"/>
+        <rect x="795" y="154" width="12" height="5"/><rect x="836" y="154" width="12" height="5"/>
+        <rect x="816" y="176" width="12" height="5"/><rect x="852" y="176" width="12" height="5"/>
+        <rect x="1020" y="150" width="10" height="4"/><rect x="1044" y="150" width="10" height="4"/>
+        <rect x="1032" y="172" width="10" height="4"/><rect x="1062" y="172" width="10" height="4"/>
+      </g>
+      <g fill="#ffb84d">
+        <rect x="462" y="185" width="9" height="4"/><rect x="484" y="185" width="9" height="4"/>
+        <rect x="462" y="205" width="9" height="4"/><rect x="502" y="205" width="9" height="4"/>
+        <rect x="685" y="180" width="10" height="4"/><rect x="712" y="180" width="10" height="4"/>
+        <rect x="698" y="202" width="10" height="4"/><rect x="730" y="202" width="10" height="4"/>
+        <rect x="920" y="196" width="9" height="4"/><rect x="945" y="196" width="9" height="4"/>
+      </g>
+      <g fill="#ff4fa8">
+        <rect x="350" y="140" width="10" height="4"/><rect x="374" y="140" width="10" height="4"/>
+        <rect x="362" y="160" width="10" height="4"/><rect x="394" y="160" width="10" height="4"/>
+      </g>
+    </g>
+
+    <!-- Midground Buildings -->
+    <g>
+      <!-- Mid-Center-Left Tower -->
+      <rect x="405" y="220" width="130" height="290" fill="#10132b" stroke="#1e2246" stroke-width="1"/>
+      <rect x="424" y="246" width="16" height="9" fill="#ff9f43" opacity="0.65"/>
+      <rect x="454" y="246" width="16" height="9" fill="#ff9f43" opacity="0.35"/>
+      <rect x="484" y="246" width="16" height="9" fill="#4ceeff" opacity="0.55"/>
+      <rect x="424" y="274" width="16" height="9" fill="#4ceeff" opacity="0.4"/>
+      <rect x="484" y="274" width="16" height="9" fill="#ff3c9e" opacity="0.5"/>
+      <!-- Mid-Center-Right Tower -->
+      <rect x="745" y="232" width="150" height="278" fill="#0f142c" stroke="#1d2b4f" stroke-width="1"/>
+      <rect x="766" y="262" width="22" height="8" fill="#00e5ff" opacity="0.6"/>
+      <rect x="804" y="262" width="22" height="8" fill="#00e5ff" opacity="0.3"/>
+      <rect x="842" y="262" width="22" height="8" fill="#ffb142" opacity="0.65"/>
+      <rect x="766" y="286" width="22" height="8" fill="#ff42a1" opacity="0.45"/>
+      <rect x="842" y="286" width="22" height="8" fill="#00e5ff" opacity="0.5"/>
+      <!-- Glowing Vertical Cyan Neon Strip on Mid-Right Building -->
+      <g filter="url(#glow)">
+        <rect x="874" y="250" width="5" height="165" rx="2.5" fill="#00f0ff"/>
+        <rect x="875.5" y="252" width="2" height="161" rx="1" fill="#e6feff"/>
+      </g>
+      <!-- Small Magenta Bar Accent -->
+      <g filter="url(#glow)">
+        <rect x="524" y="268" width="4" height="98" rx="2" fill="#ff248c"/>
+        <rect x="525" y="270" width="2" height="94" rx="1" fill="#ffd9ec"/>
+      </g>
+    </g>
+
+    <!-- 3. FOREGROUND BUILDINGS & HERO FLICKERING "NEON" SIGN -->
+    <!-- Left Foreground Building (holds the NEON sign) -->
+    <g>
+      <rect x="-10" y="32" width="415" height="475" fill="url(#bldgLeft)"/>
+      <!-- Architectural Cornices & Window Bays -->
+      <rect x="-10" y="72" width="415" height="8" fill="#1e1b38"/>
+      <rect x="-10" y="290" width="415" height="6" fill="#251a3d"/>
+      <line x1="404" y1="32" x2="404" y2="506" stroke="#ff3898" stroke-width="1.5" opacity="0.55"/>
+      <!-- Lit Shopfront & Upper Windows -->
+      <g fill="#26193b" stroke="#362452" stroke-width="1">
+        <rect x="26" y="102" width="46" height="58"/><rect x="26" y="182" width="46" height="58"/>
+        <rect x="26" y="318" width="66" height="72"/><rect x="116" y="318" width="66" height="72"/>
+        <rect x="206" y="318" width="66" height="72"/><rect x="296" y="318" width="66" height="72"/>
+      </g>
+      <!-- Warm Interior Glow in Ground Floor Windows -->
+      <rect x="30" y="322" width="58" height="64" fill="#ff8f3a" opacity="0.22"/>
+      <rect x="120" y="322" width="58" height="64" fill="#ff2a94" opacity="0.24"/>
+      <rect x="210" y="322" width="58" height="64" fill="#00d9ff" opacity="0.18"/>
+      <rect x="300" y="322" width="58" height="64" fill="#ff9e42" opacity="0.26"/>
+      <!-- Shop Awning -->
+      <polygon points="0,418 405,418 416,436 0,436" fill="#1b1230" stroke="#ff3399" stroke-width="1" opacity="0.9"/>
+      <rect x="18" y="440" width="128" height="64" fill="#1a122e"/>
+      <rect x="24" y="446" width="116" height="54" fill="#ff55a8" opacity="0.25"/>
+      <rect x="166" y="440" width="150" height="64" fill="#131930"/>
+      <rect x="172" y="446" width="138" height="54" fill="#00dcff" opacity="0.22"/>
+    </g>
+
+    <!-- Right Foreground Building -->
+    <g>
+      <rect x="926" y="58" width="284" height="450" fill="url(#bldgRight)"/>
+      <line x1="926" y1="58" x2="926" y2="506" stroke="#00eaff" stroke-width="1.5" opacity="0.5"/>
+      <rect x="926" y="210" width="284" height="6" fill="#182a45"/>
+      <rect x="926" y="390" width="284" height="6" fill="#182a45"/>
+      <!-- Geometric Cyan & Amber Neon Sign on Right Building -->
+      <rect x="964" y="130" width="186" height="52" rx="6" fill="#090e1f" stroke="#1d3554" stroke-width="2"/>
+      <g filter="url(#glow)">
+        <rect x="974" y="140" width="166" height="32" rx="4" fill="none" stroke="#00f0ff" stroke-width="3"/>
+        <line x1="990" y1="156" x2="1052" y2="156" stroke="#ff9d2e" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="1076" cy="156" r="8" fill="none" stroke="#ff2e97" stroke-width="3.2"/>
+        <line x1="1098" y1="156" x2="1126" y2="156" stroke="#00f0ff" stroke-width="4" stroke-linecap="round"/>
+      </g>
+      <!-- Vertical Glowing Bars on Right -->
+      <g filter="url(#glow)">
+        <rect x="954" y="236" width="5" height="132" rx="2.5" fill="#00f0ff"/>
+        <rect x="955.5" y="238" width="2" height="128" rx="1" fill="#e8ffff"/>
+        <rect x="1162" y="236" width="5" height="132" rx="2.5" fill="#ff2a94"/>
+        <rect x="1163.5" y="238" width="2" height="128" rx="1" fill="#ffe6f3"/>
+      </g>
+      <!-- Right Windows -->
+      <g fill="#0c1a30" stroke="#1e3c5c" stroke-width="1">
+        <rect x="984" y="236" width="68" height="56"/><rect x="1072" y="236" width="68" height="56"/>
+        <rect x="984" y="310" width="68" height="56"/><rect x="1072" y="310" width="68" height="56"/>
+      </g>
+      <rect x="988" y="240" width="60" height="48" fill="#00d8ff" opacity="0.18"/>
+      <rect x="1076" y="314" width="60" height="48" fill="#ff9e3b" opacity="0.24"/>
+      <rect x="958" y="422" width="110" height="82" fill="#0a2033" stroke="#00e1ff" stroke-width="1" opacity="0.7"/>
+      <rect x="1088" y="422" width="96" height="82" fill="#21122e" stroke="#ff3c9c" stroke-width="1" opacity="0.65"/>
+    </g>
+
+    <!-- Distant Streetlamps along the Curb -->
+    <g>
+      <line x1="422" y1="504" x2="422" y2="338" stroke="#1b2238" stroke-width="4"/>
+      <path d="M 422 338 Q 422 328 438 328 L 454 328" fill="none" stroke="#1b2238" stroke-width="3.5"/>
+      <ellipse cx="448" cy="331" rx="10" ry="3.5" fill="#ffe5b4" filter="url(#glow)"/>
+      <line x1="905" y1="504" x2="905" y2="326" stroke="#192338" stroke-width="4.5"/>
+      <path d="M 905 326 Q 905 316 888 316 L 870 316" fill="none" stroke="#192338" stroke-width="3.5"/>
+      <ellipse cx="876" cy="319" rx="11" ry="3.8" fill="#c9fbff" filter="url(#glow)"/>
+    </g>
+
+    <!-- HERO GLOWING & FLICKERING "NEON" SIGN -->
+    <g id="heroNeonSign">
+      <!-- Mounting Brackets & Signboard Box -->
+      <rect x="96" y="152" width="14" height="8" fill="#19162b"/>
+      <rect x="96" y="220" width="14" height="8" fill="#19162b"/>
+      <rect x="104" y="136" width="308" height="110" rx="14" fill="url(#signBack)" stroke="#2b2142" stroke-width="3"/>
+      <!-- Unlit Dark Glass Tubes (visible during brief flicker-offs) -->
+      <rect x="112" y="144" width="292" height="94" rx="10" fill="none" stroke="#1c3547" stroke-width="5"/>
+      <use href="#neonLettersRaw" stroke="#36182c" stroke-width="8"/>
+
+      <!-- Cyan Neon Outer Frame Tube -->
+      <g filter="url(#glow)">
+        <rect x="112" y="144" width="292" height="94" rx="10" fill="none" stroke="#00f0ff" stroke-width="4.5"/>
+        <rect x="112" y="144" width="292" height="94" rx="10" fill="none" stroke="#e3feff" stroke-width="1.6"/>
+        <animate attributeName="opacity" values="1;1;0.82;1;0.94;1" keyTimes="0;0.48;0.5;0.53;0.82;1" dur="5.2s" repeatCount="indefinite"/>
+      </g>
+
+      <!-- Lit "NEON" Letters with Realistic Electrical Flicker -->
+      <g filter="url(#glow)">
+        <!-- Ambient pink spill on signboard backing -->
+        <rect x="118" y="150" width="280" height="82" rx="6" fill="#ff1e8e" opacity="0.13"/>
+
+        <!-- N, O, N (steady with occasional full-sign power dip) -->
+        <g>
+          <use href="#ltrN1" fill="none" stroke="#ff1a8c" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <use href="#ltrN1" fill="none" stroke="#ffeaf5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <use href="#ltrO" fill="none" stroke="#ff1a8c" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <use href="#ltrO" fill="none" stroke="#ffeaf5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <use href="#ltrN2" fill="none" stroke="#ff1a8c" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <use href="#ltrN2" fill="none" stroke="#ffeaf5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <animate attributeName="opacity"
+            values="1;1;0.88;1;1;0.35;1;0.92;1"
+            keyTimes="0;0.32;0.335;0.35;0.74;0.755;0.775;0.79;1"
+            dur="4.8s" repeatCount="indefinite"/>
+        </g>
+
+        <!-- Letter E (distinct buzzing electrode flicker) -->
+        <g>
+          <use href="#ltrE" fill="none" stroke="#ff1a8c" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <use href="#ltrE" fill="none" stroke="#ffeaf5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <animate attributeName="opacity"
+            values="1;1;0.18;0.95;0.12;1;1;0.65;1;0.15;0.92;1"
+            keyTimes="0;0.18;0.20;0.22;0.24;0.27;0.64;0.66;0.68;0.70;0.72;1"
+            dur="3.1s" repeatCount="indefinite"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- Sidewalk Curb Line -->
+    <rect x="0" y="498" width="1200" height="8" fill="#181c30"/>
+    <line x1="0" y1="504" x2="1200" y2="504" stroke="#4f6c94" stroke-width="1.2" opacity="0.55"/>
+
+    <!-- 4. WET ASPHALT ROAD & SYNCHRONIZED REFLECTIONS -->
+    <g clip-path="url(#roadClip)">
+      <rect x="0" y="504" width="1200" height="216" fill="url(#asphaltGrad)"/>
+
+      <!-- Blurred Vertical Neon Light Columns on Wet Asphalt -->
+      <g filter="url(#wetBlur)">
+        <!-- Left Shopfront & NEON Sign Magenta Reflection Pillar (flicker-synced!) -->
+        <g>
+          <rect x="104" y="504" width="308" height="216" fill="url(#magentaPillar)"/>
+          <rect x="112" y="506" width="12" height="190" fill="url(#cyanPillar)"/>
+          <rect x="392" y="506" width="12" height="190" fill="url(#cyanPillar)"/>
+          <animate attributeName="opacity"
+            values="1;1;0.82;1;1;0.42;1;0.9;1"
+            keyTimes="0;0.32;0.335;0.35;0.74;0.755;0.775;0.79;1"
+            dur="4.8s" repeatCount="indefinite"/>
+        </g>
+
+        <!-- Mirrored Inverted "NEON" Sign Reflection on Foreground Wet Puddle -->
+        <g transform="translate(0, 818) scale(1, -0.82)" opacity="0.52">
+          <rect x="112" y="144" width="292" height="94" rx="10" fill="none" stroke="#00f0ff" stroke-width="5"/>
+          <g>
+            <use href="#ltrN1" fill="none" stroke="#ff1a8c" stroke-width="10" stroke-linecap="round"/>
+            <use href="#ltrO" fill="none" stroke="#ff1a8c" stroke-width="10" stroke-linecap="round"/>
+            <use href="#ltrN2" fill="none" stroke="#ff1a8c" stroke-width="10" stroke-linecap="round"/>
+            <animate attributeName="opacity"
+              values="1;1;0.88;1;1;0.35;1;0.92;1"
+              keyTimes="0;0.32;0.335;0.35;0.74;0.755;0.775;0.79;1"
+              dur="4.8s" repeatCount="indefinite"/>
+          </g>
+          <g>
+            <use href="#ltrE" fill="none" stroke="#ff1a8c" stroke-width="10" stroke-linecap="round"/>
+            <animate attributeName="opacity"
+              values="1;1;0.18;0.95;0.12;1;1;0.65;1;0.15;0.92;1"
+              keyTimes="0;0.18;0.20;0.22;0.24;0.27;0.64;0.66;0.68;0.70;0.72;1"
+              dur="3.1s" repeatCount="indefinite"/>
+          </g>
+        </g>
+
+        <!-- Midground & Right Building Reflections -->
+        <rect x="430" y="504" width="38" height="145" fill="url(#amberPillar)"/>
+        <rect x="515" y="504" width="24" height="150" fill="url(#magentaPillar)"/>
+        <rect x="862" y="504" width="44" height="185" fill="url(#cyanPillar)"/>
+        <rect x="945" y="504" width="125" height="212" fill="url(#cyanPillar)"/>
+        <rect x="1080" y="504" width="96" height="200" fill="url(#magentaPillar)"/>
+        <rect x="1040" y="504" width="52" height="140" fill="url(#amberPillar)"/>
+
+        <!-- Bike Headlight Specular Pool on Wet Asphalt -->
+        <polygon points="755,588 1200,545 1200,705 745,624" fill="url(#headlightPool)"/>
+
+        <!-- Bike & Pelican Soft Mirrored Reflection Below Contact Plane (y=607) -->
+        <g opacity="0.48">
+          <ellipse cx="445" cy="656" rx="84" ry="44" fill="#050712" stroke="#ff3c9c" stroke-width="3" opacity="0.75"/>
+          <ellipse cx="775" cy="656" rx="84" ry="44" fill="#050712" stroke="#00eaff" stroke-width="3" opacity="0.75"/>
+          <path d="M 480 680 Q 590 718 710 685 Q 630 645 480 680 Z" fill="#070a18" opacity="0.75"/>
+          <!-- Reflected Red Taillight Streak -->
+          <ellipse cx="485" cy="642" rx="46" ry="14" fill="#ff1a4b" opacity="0.45"/>
+        </g>
+      </g>
+
+      <!-- Animated Wet Road Lane Dashes Rushing Right-to-Left -->
+      <g opacity="0.34">
+        <g fill="#7fa2cc">
+          <polygon points="80,566 205,566 196,572 72,572"/>
+          <polygon points="380,566 505,566 496,572 372,572"/>
+          <polygon points="680,566 805,566 796,572 672,572"/>
+          <polygon points="980,566 1105,566 1096,572 972,572"/>
+          <polygon points="1280,566 1405,566 1396,572 1272,572"/>
+          <animateTransform attributeName="transform" type="translate" from="0 0" to="-300 0" dur="0.48s" repeatCount="indefinite"/>
+        </g>
+      </g>
+
+      <!-- Wet Asphalt Ripple Texture & Specular Puddle Sheens -->
+      <g stroke-linecap="round">
+        <line x1="20" y1="534" x2="1180" y2="534" stroke="#060812" stroke-width="3" opacity="0.35"/>
+        <line x1="60" y1="554" x2="1120" y2="554" stroke="#060812" stroke-width="2.5" opacity="0.3"/>
+        <line x1="115" y1="594" x2="415" y2="594" stroke="#ff5cb2" stroke-width="1.6" opacity="0.32"/>
+        <line x1="145" y1="622" x2="385" y2="622" stroke="#ff42a1" stroke-width="1.4" opacity="0.28"/>
+        <line x1="125" y1="654" x2="405" y2="654" stroke="#00e5ff" stroke-width="1.3" opacity="0.25"/>
+        <line x1="160" y1="684" x2="365" y2="684" stroke="#ff4fa8" stroke-width="1.8" opacity="0.24"/>
+        <line x1="870" y1="582" x2="1160" y2="582" stroke="#00f0ff" stroke-width="1.6" opacity="0.3"/>
+        <line x1="910" y1="636" x2="1185" y2="636" stroke="#3aefff" stroke-width="1.5" opacity="0.26"/>
+        <line x1="940" y1="676" x2="1150" y2="676" stroke="#ff4fa8" stroke-width="1.5" opacity="0.22"/>
+      </g>
+
+      <!-- Ground Contact Shadow Directly Beneath Bicycle Tires -->
+      <ellipse cx="445" cy="607" rx="68" ry="8" fill="#020308" opacity="0.88"/>
+      <ellipse cx="775" cy="607" rx="68" ry="8" fill="#020308" opacity="0.88"/>
+      <ellipse cx="610" cy="609" rx="195" ry="11" fill="#03050d" opacity="0.58"/>
+    </g>
+
+    <!-- 5. BACKGROUND SPEED / MOTION LINES -->
+    <g opacity="0.8">
+      <rect x="0" y="256" width="220" height="2" fill="url(#streakCyan)">
+        <animateTransform attributeName="transform" type="translate" from="1240 0" to="-260 0" dur="0.72s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="0" y="346" width="290" height="2.4" fill="url(#streakMagenta)">
+        <animateTransform attributeName="transform" type="translate" from="1360 0" to="-320 0" dur="0.58s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="0" y="424" width="180" height="1.8" fill="url(#streakWhite)">
+        <animateTransform attributeName="transform" type="translate" from="1280 0" to="-220 0" dur="0.64s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="0" y="478" width="320" height="2.5" fill="url(#streakCyan)">
+        <animateTransform attributeName="transform" type="translate" from="1420 0" to="-360 0" dur="0.52s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <!-- 6. HEADLIGHT VOLUMETRIC CONE (behind front fork & tire rim) -->
+    <polygon points="750,354 1200,455 1200,632 748,370" fill="url(#headlightBeam)"/>
+
+    <!-- 7. BICYCLE & PELICAN (EXACT SYNCHRONIZED KINEMATICS) -->
+    <!-- FAR-SIDE PELICAN LEG & FAR CRANK/PEDAL/FOOT (180° out of phase with near leg) -->
+    <g id="farLegAndPedal">
+      <!-- Far Feathered Thigh (Hip 542,376 -> Far Knee) -->
+      <path fill="none" stroke="#535f7a" stroke-width="24" stroke-linecap="round">
+        <animate attributeName="d" dur="1.4s" repeatCount="indefinite"
+          values="M 542 376 L 607.4 443.1; M 542 376 L 615.5 433.5; M 542 376 L 623.3 420.7; M 542 376 L 629.2 406.6;
+                  M 542 376 L 632.1 395.4; M 542 376 L 632.9 391.3; M 542 376 L 632.2 395.2; M 542 376 L 629.5 405.5;
+                  M 542 376 L 624.0 419.1; M 542 376 L 615.4 433.6; M 542 376 L 604.7 446.0; M 542 376 L 595.2 454.2;
+                  M 542 376 L 590.5 457.5; M 542 376 L 590.9 457.2; M 542 376 L 594.6 454.7; M 542 376 L 600.3 450.0;
+                  M 542 376 L 607.4 443.1"/>
+      </path>
+      <!-- Far Avian Lower Leg / Tarsus (Far Knee -> Far Ankle) -->
+      <path fill="none" stroke="url(#pelicanLegFar)" stroke-width="11" stroke-linecap="round">
+        <animate attributeName="d" dur="1.4s" repeatCount="indefinite"
+          values="M 607.4 443.1 L 543.0 517.0; M 615.5 433.5 L 545.9 502.5; M 623.3 420.7 L 554.1 490.1; M 629.2 406.6 L 566.5 481.9;
+                  M 632.1 395.4 L 581.0 479.0; M 632.9 391.3 L 595.5 481.9; M 632.2 395.2 L 607.9 490.1; M 629.5 405.5 L 616.1 502.5;
+                  M 624.0 419.1 L 619.0 517.0; M 615.4 433.6 L 616.1 531.5; M 604.7 446.0 L 607.9 543.9; M 595.2 454.2 L 595.5 552.1;
+                  M 590.5 457.5 L 581.0 555.0; M 590.9 457.2 L 566.5 552.1; M 594.6 454.7 L 554.1 543.9; M 600.3 450.0 L 545.9 531.5;
+                  M 607.4 443.1 L 543.0 517.0"/>
+      </path>
+
+      <!-- Far Crank Arm + Counter-Rotating Far Pedal & Far Webbed Pelican Foot -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0 585 522" to="360 585 522" dur="1.4s" repeatCount="indefinite"/>
+        <line x1="585" y1="522" x2="547" y2="522" stroke="#252f45" stroke-width="8" stroke-linecap="round"/>
+        <!-- Far Pedal & Webbed Foot (counter-rotates to remain perfectly level) -->
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0 547 522" to="-360 547 522" dur="1.4s" repeatCount="indefinite"/>
+          <!-- Far Webbed Foot -->
+          <path d="M 538 515 Q 544 510 555 513 L 569 518 Q 565 522 554 521 L 537 521 Z" fill="#b35325" stroke="#752c1b" stroke-width="1"/>
+          <!-- Far Pedal Body -->
+          <rect x="533" y="519" width="28" height="6.5" rx="2.5" fill="#181f30" stroke="#475978" stroke-width="1.2"/>
+          <circle cx="547" cy="522" r="2.6" fill="#6f84a3"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- BICYCLE WHEELS (Exact 2:1 Gear Ratio: 0.7s per spin vs 1.4s crank) -->
+    <!-- Rear Wheel at (445, 515) -->
+    <g id="rearWheel">
+      <!-- Rotating Interior -->
+      <g transform="translate(445, 515)">
+        <g>
+          <use href="#wheelInner"/>
+          <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="0.7s" repeatCount="indefinite"/>
+        </g>
+      </g>
+      <!-- Outer Rubber Tire & Environmental Rim Lighting (non-rotating highlights) -->
+      <circle cx="445" cy="515" r="85.5" fill="none" stroke="#121622" stroke-width="13.5"/>
+      <circle cx="445" cy="515" r="91.5" fill="none" stroke="#222a3d" stroke-width="1.2"/>
+      <!-- Magenta Neon Backlight on Upper-Left Tire -->
+      <path d="M 366 472 A 91 91 0 0 1 468 426" fill="none" stroke="#ff389e" stroke-width="2.4" opacity="0.72" stroke-linecap="round"/>
+      <!-- Cyan Street Sheen on Bottom-Right Tire -->
+      <path d="M 526 554 A 91 91 0 0 1 452 605" fill="none" stroke="#00e5ff" stroke-width="1.8" opacity="0.45" stroke-linecap="round"/>
+    </g>
+
+    <!-- Front Wheel at (775, 515) -->
+    <g id="frontWheel">
+      <g transform="translate(775, 515)">
+        <g>
+          <use href="#wheelInner"/>
+          <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="0.7s" repeatCount="indefinite"/>
+        </g>
+      </g>
+      <circle cx="775" cy="515" r="85.5" fill="none" stroke="#121622" stroke-width="13.5"/>
+      <circle cx="775" cy="515" r="91.5" fill="none" stroke="#222a3d" stroke-width="1.2"/>
+      <!-- Cyan Headlight & City Rim Highlight on Front Tire -->
+      <path d="M 792 426 A 91 91 0 0 1 862 544" fill="none" stroke="#45f2ff" stroke-width="2.5" opacity="0.78" stroke-linecap="round"/>
+      <path d="M 692 480 A 91 91 0 0 1 752 428" fill="none" stroke="#ff3ca0" stroke-width="1.8" opacity="0.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- DRIVETRAIN: REAR COG, ANIMATED CHAIN & FRONT CHAINRING -->
+    <g id="drivetrain">
+      <!-- Rear Cog (rotates at wheel speed 0.7s) -->
+      <g transform="translate(445, 515)">
+        <circle cx="0" cy="0" r="14.5" fill="#232d42" stroke="#859bb8" stroke-width="3" stroke-dasharray="4 3">
+          <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="0.7s" repeatCount="indefinite"/>
+        </circle>
+      </g>
+      <!-- Animated Chain Loop (exact matched linear velocity) -->
+      <path d="M 445 500 L 585 491 A 31 31 0 0 1 585 553 L 445 530 A 15 15 0 0 1 445 500 Z"
+            fill="none" stroke="#1b2233" stroke-width="4.5"/>
+      <path d="M 445 500 L 585 491 A 31 31 0 0 1 585 553 L 445 530 A 15 15 0 0 1 445 500 Z"
+            fill="none" stroke="#9db6d6" stroke-width="2.6" stroke-dasharray="6 6" stroke-linecap="round">
+        <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="0.175s" repeatCount="indefinite"/>
+      </path>
+    </g>
+
+    <!-- FAR HANDLEBAR & PELICAN FAR WING -->
+    <g id="farWingAndBar">
+      <!-- Far Handlebar Grip -->
+      <path d="M 730 340 Q 748 334 756 336" fill="none" stroke="#232d42" stroke-width="7" stroke-linecap="round"/>
+      <!-- Pelican Far Wing reaching to far handlebar -->
+      <path d="M 594 300 Q 650 308 708 326 Q 736 333 752 336 Q 738 348 706 344 Q 652 338 592 325 Z"
+            fill="#475470" stroke="#2a334a" stroke-width="1.2"/>
+    </g>
+
+    <!-- BICYCLE FRAME, FORK, SADDLE, HANDLEBARS & LIGHTS -->
+    <g id="bikeFrame" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Rear Chainstay & Seatstay -->
+      <line x1="445" y1="515" x2="585" y2="522" stroke="#1a273d" stroke-width="8"/>
+      <line x1="445" y1="515" x2="585" y2="522" stroke="#53d8f0" stroke-width="1.4" opacity="0.55"/>
+      <line x1="445" y1="515" x2="535" y2="378" stroke="#1f2c44" stroke-width="6.5"/>
+      <line x1="445" y1="515" x2="535" y2="378" stroke="#ff58b0" stroke-width="1.3" opacity="0.6"/>
+
+      <!-- Main Diamond Frame Tubes -->
+      <line x1="585" y1="522" x2="535" y2="378" stroke="url(#frameTube)" stroke-width="10.5"/>
+      <line x1="585" y1="522" x2="727" y2="406" stroke="url(#frameTube)" stroke-width="12"/>
+      <line x1="535" y1="378" x2="716" y2="368" stroke="url(#frameTube)" stroke-width="9.5"/>
+      <!-- Specular Neon Tube Highlights -->
+      <line x1="538" y1="375" x2="713" y2="365" stroke="#99f8ff" stroke-width="1.5" opacity="0.72"/>
+      <line x1="590" y1="517" x2="723" y2="409" stroke="#5ceeff" stroke-width="1.4" opacity="0.6"/>
+
+      <!-- Head Tube & Front Fork -->
+      <line x1="715" y1="364" x2="731" y2="412" stroke="#223650" stroke-width="13"/>
+      <path d="M 730 410 Q 752 462 775 515" fill="none" stroke="url(#frameTube)" stroke-width="8.5"/>
+      <path d="M 732 412 Q 754 462 776 512" fill="none" stroke="#75f4ff" stroke-width="1.4" opacity="0.75"/>
+
+      <!-- Rear Fender & Front Fender (sleek urban commuter detail) -->
+      <path d="M 358 492 A 95 95 0 0 1 516 446" fill="none" stroke="#1c2438" stroke-width="5.5"/>
+      <path d="M 358 490 A 95 95 0 0 1 514 444" fill="none" stroke="#ff4fa8" stroke-width="1.2" opacity="0.65"/>
+      <path d="M 702 454 A 95 95 0 0 1 838 442" fill="none" stroke="#1c2438" stroke-width="5"/>
+      <path d="M 704 452 A 95 95 0 0 1 836 440" fill="none" stroke="#5af3ff" stroke-width="1.2" opacity="0.7"/>
+
+      <!-- Seatpost & Ergonomic Saddle -->
+      <line x1="535" y1="378" x2="524" y2="346" stroke="url(#chromeGrad)" stroke-width="7"/>
+      <path d="M 488 345 Q 515 339 548 343 Q 564 345 554 351 Q 524 353 494 352 Q 483 351 488 345 Z"
+            fill="#191e2e" stroke="#475878" stroke-width="1.4"/>
+
+      <!-- Stem & Swept Urban Handlebars -->
+      <line x1="716" y1="364" x2="710" y2="338" stroke="url(#chromeGrad)" stroke-width="6.5"/>
+      <path d="M 710 338 L 732 336 Q 736 340 718 344 L 696 346" fill="none" stroke="#99b3cf" stroke-width="5.5"/>
+      <!-- Near Gripped Handlebar Sleeve -->
+      <line x1="696" y1="346" x2="720" y2="344" stroke="#182030" stroke-width="8.5"/>
+
+      <!-- Glowing Front LED Headlight -->
+      <g>
+        <path d="M 730 352 L 748 350 Q 755 352 755 360 Q 755 368 748 370 L 730 368 Z" fill="#1b263b" stroke="#6d89ab" stroke-width="1.3"/>
+        <ellipse cx="754" cy="360" rx="4.5" ry="9" fill="#e6feff" filter="url(#glow)"/>
+      </g>
+
+      <!-- Glowing Red LED Taillight under Saddle -->
+      <g>
+        <circle cx="516" cy="366" r="24" fill="url(#tailGlow)"/>
+        <rect x="511" y="361" width="9" height="10" rx="3" fill="#ff1e4d" filter="url(#glow)"/>
+        <rect x="513" y="363" width="4" height="6" rx="1.5" fill="#ffd9e2"/>
+      </g>
+
+      <!-- Front Chainring (rotates with crank at 1.4s) -->
+      <g transform="translate(585, 522)">
+        <g>
+          <circle cx="0" cy="0" r="30.5" fill="none" stroke="#89a3c2" stroke-width="4" stroke-dasharray="5 3"/>
+          <circle cx="0" cy="0" r="26" fill="none" stroke="#2a3852" stroke-width="5"/>
+          <!-- 5-Arm Spider -->
+          <g stroke="#6c82a1" stroke-width="3.2">
+            <line x1="0" y1="0" x2="25" y2="0"/>
+            <line x1="0" y1="0" x2="7.7" y2="23.8"/>
+            <line x1="0" y1="0" x2="-20.2" y2="14.7"/>
+            <line x1="0" y1="0" x2="-20.2" y2="-14.7"/>
+            <line x1="0" y1="0" x2="7.7" y2="-23.8"/>
+          </g>
+          <circle cx="0" cy="0" r="10" fill="#1d273b" stroke="#9db6d6" stroke-width="2"/>
+          <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="1.4s" repeatCount="indefinite"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- 8. REALISTIC PELICAN RIDER -->
+    <g id="pelicanRider">
+      <!-- Sleek Tail Feathers (with subtle wind flutter) -->
+      <g>
+        <path d="M 484 334 Q 446 336 416 352 Q 445 358 482 356 Z" fill="#232b40" stroke="#ff4ca8" stroke-width="0.9" opacity="0.95"/>
+        <path d="M 488 340 Q 448 348 424 366 Q 454 368 492 362 Z" fill="#192033"/>
+        <path d="M 495 330 Q 464 332 438 344 Q 466 346 496 345 Z" fill="#c5d1e3"/>
+        <animateTransform attributeName="transform" type="rotate" values="0 486 346; -2.2 486 346; 1.2 486 346; 0 486 346" dur="0.7s" repeatCount="indefinite"/>
+      </g>
+
+      <!-- Main Streamlined Pelican Torso & Plumage -->
+      <path d="M 476 338
+               C 492 300 538 274 584 282
+               C 614 287 632 314 624 344
+               C 615 376 582 396 540 392
+               C 502 388 476 368 476 338 Z"
+            fill="url(#pelicanBody)"/>
+      <!-- Subtle Layered Covert Feather Contour Lines -->
+      <g fill="none" stroke="#8c9cb8" stroke-width="1.2" opacity="0.45">
+        <path d="M 505 322 Q 528 332 552 325"/>
+        <path d="M 496 342 Q 526 352 556 344"/>
+        <path d="M 516 362 Q 546 370 578 360"/>
+      </g>
+      <!-- Magenta Neon Rim Light along Spine/Back -->
+      <path d="M 480 330 C 498 296 536 278 574 282" fill="none" stroke="#ff4ca8" stroke-width="2.6" stroke-linecap="round" opacity="0.82"/>
+      <!-- Cyan Neon Rim Light along Forward Chest -->
+      <path d="M 608 296 C 625 312 628 338 614 362" fill="none" stroke="#53f2ff" stroke-width="2.4" stroke-linecap="round" opacity="0.78"/>
+
+      <!-- Graceful S-Curved Neck, Proud Head, Wind-Swept Crest & Iconic Beak/Pouch -->
+      <g id="pelicanHeadAndNeck">
+        <!-- Subtle alive rhythmic cycling nod synced to pedal strokes -->
+        <animateTransform attributeName="transform" type="rotate" values="0 584 292; 1.4 584 292; 0 584 292; -1.1 584 292; 0 584 292" dur="1.4s" repeatCount="indefinite"/>
+
+        <!-- Wind-Swept Nape Crest Feathers -->
+        <g>
+          <path d="M 588 172 Q 564 170 546 178 Q 568 180 588 182 Z" fill="#e8dff0"/>
+          <path d="M 586 180 Q 562 183 549 192 Q 570 191 587 190 Z" fill="#ff7ac2" opacity="0.85"/>
+          <path d="M 584 188 Q 565 194 556 203 Q 574 200 586 198 Z" fill="#c7d3e6"/>
+          <animateTransform attributeName="transform" type="rotate" values="0 588 178; -4 588 178; 2 588 178; 0 588 178" dur="0.45s" repeatCount="indefinite"/>
+        </g>
+
+        <!-- S-Curved Neck -->
+        <path d="M 568 295
+                 C 554 256 558 214 582 178
+                 C 594 159 616 156 636 165
+                 L 632 198
+                 C 612 206 599 226 604 254
+                 C 608 274 614 288 614 304
+                 C 596 312 576 308 568 295 Z"
+              fill="url(#pelicanNeck)"/>
+        <!-- Neck Backlight & Front Rim -->
+        <path d="M 564 286 C 554 250 560 212 582 178 C 591 164 606 158 622 161" fill="none" stroke="#ff52ae" stroke-width="2.2" opacity="0.82"/>
+        <path d="M 605 224 C 602 248 610 274 615 296" fill="none" stroke="#66f5ff" stroke-width="2" opacity="0.72"/>
+
+        <!-- Iconic Gular Pouch (realistic taut aerodynamic curve & warm subsurface translucency) -->
+        <path d="M 628 192
+                 Q 638 228 674 238
+                 Q 722 246 782 201
+                 L 636 187 Z"
+              fill="url(#pelicanPouch)"/>
+        <!-- Subtle Pouch Skin Folds & Translucent Glow -->
+        <path d="M 648 194 Q 656 220 676 230" fill="none" stroke="#ffd27d" stroke-width="1.3" opacity="0.45"/>
+        <path d="M 676 196 Q 686 222 708 228" fill="none" stroke="#ffd27d" stroke-width="1.2" opacity="0.38"/>
+        <path d="M 708 198 Q 718 216 742 216" fill="none" stroke="#ff8266" stroke-width="1.2" opacity="0.4"/>
+        <!-- Lower Mandible Rim -->
+        <path d="M 633 188 Q 712 197 785 201" fill="none" stroke="#d4633b" stroke-width="3.2" stroke-linecap="round"/>
+
+        <!-- Long Realistic Upper Bill (Maxilla) with Hooked Nail Tip -->
+        <path d="M 633 166
+                 Q 714 176 792 195
+                 Q 799 197 794 203
+                 Q 790 207 785 202
+                 Q 710 194 633 188 Z"
+              fill="url(#pelicanUpperBill)"/>
+        <!-- Bill Ridge Highlight (cyan city reflection on upper culmen) -->
+        <path d="M 638 168 Q 715 177 788 194" fill="none" stroke="#bffbff" stroke-width="1.8" opacity="0.75" stroke-linecap="round"/>
+        <!-- Bill Nostril Groove & Mouth Line -->
+        <path d="M 642 178 Q 712 186 786 199" fill="none" stroke="#853d2e" stroke-width="1.2" opacity="0.65"/>
+        <ellipse cx="655" cy="176" rx="4.5" ry="1.3" transform="rotate(7 655 176)" fill="#6e3a32" opacity="0.75"/>
+
+        <!-- Bare Orbital Skin Patch & Determined Focused Eye -->
+        <ellipse cx="622" cy="175" rx="10.5" ry="7.2" fill="#f2c494" opacity="0.88"/>
+        <!-- Brow Ridge (cool determined cyclist focus) -->
+        <path d="M 612 170 Q 623 168 632 173" fill="none" stroke="#8f7268" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="623.5" cy="175" r="4.4" fill="#121624"/>
+        <circle cx="623.5" cy="175" r="2.6" fill="#2c3e5e"/>
+        <!-- Crisp Specular Neon Catchlights in Eye -->
+        <circle cx="625" cy="173.6" r="1.4" fill="#ffffff"/>
+        <circle cx="621.8" cy="176.2" r="0.8" fill="#ff52ae"/>
+      </g>
+
+      <!-- Near Wing (Sculpted Shoulder, Layered Primary Flight Feathers gripping Near Handlebar!) -->
+      <g id="nearWing">
+        <!-- Upper Wing Arm / Scapulars -->
+        <path d="M 548 302
+                 C 582 298 618 318 656 328
+                 C 678 334 698 336 716 339
+                 C 722 341 720 351 710 351
+                 C 694 351 676 353 652 355
+                 C 612 358 564 354 532 340
+                 C 526 326 532 306 548 302 Z"
+              fill="url(#pelicanWing)"/>
+        <!-- Dark Charcoal Primary Flight Feather Tips (iconic pelican contrast!) -->
+        <path d="M 632 332 Q 674 335 715 339 Q 722 342 712 349 Q 674 352 630 352 Z" fill="#1f273b"/>
+        <!-- Individual Overlapping Wing Coverts & Primary Feather Edges -->
+        <g fill="none" stroke-linecap="round">
+          <path d="M 544 316 Q 586 320 626 332" stroke="#eef4fc" stroke-width="1.4" opacity="0.65"/>
+          <path d="M 542 328 Q 584 334 630 342" stroke="#8f9eb8" stroke-width="1.3" opacity="0.6"/>
+          <path d="M 636 339 Q 674 342 710 344" stroke="#53f0ff" stroke-width="1.1" opacity="0.5"/>
+          <path d="M 632 346 Q 670 349 704 349" stroke="#3a4766" stroke-width="1.3"/>
+          <!-- Magenta rim on upper shoulder -->
+          <path d="M 546 303 C 578 299 612 314 644 324" stroke="#ff4ca8" stroke-width="2" opacity="0.72"/>
+          <!-- Cyan rim on wrist/grip -->
+          <path d="M 664 329 Q 694 335 716 340" stroke="#6bf5ff" stroke-width="1.8" opacity="0.82"/>
+        </g>
+        <!-- Wingtip Feathers Curled Securely Around Handlebar Grip -->
+        <path d="M 702 339 Q 716 337 719 345 Q 717 352 706 351" fill="#181f30" stroke="#75f4ff" stroke-width="1.1"/>
+      </g>
+    </g>
+
+    <!-- 9. NEAR-SIDE CRANK, COUNTER-ROTATING PEDAL + WEBBED FOOT, AND EXACT IK PELICAN LEG -->
+    <g id="nearLegAndPedal">
+      <!-- Near Crank Arm + Counter-Rotating Near Pedal & Webbed Foot -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0 585 522" to="360 585 522" dur="1.4s" repeatCount="indefinite"/>
+        <!-- Forged Alloy Crank Arm -->
+        <line x1="585" y1="522" x2="623" y2="522" stroke="#182236" stroke-width="10.5" stroke-linecap="round"/>
+        <line x1="585" y1="522" x2="623" y2="522" stroke="url(#chromeGrad)" stroke-width="6.5" stroke-linecap="round"/>
+        <circle cx="585" cy="522" r="7.5" fill="#1b263b" stroke="#a6c3e0" stroke-width="2"/>
+
+        <!-- Near Pedal + Pelican's Large Orange Webbed Foot (counter-rotates to stay level!) -->
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0 623 522" to="-360 623 522" dur="1.4s" repeatCount="indefinite"/>
+          <!-- Webbed Pelican Foot seated directly on the Pedal -->
+          <path d="M 612 515 Q 619 509 632 513 L 648 518 Q 646 523 634 522 L 610 521 Z"
+                fill="url(#pelicanLegNear)" stroke="#a83d20" stroke-width="1.1" stroke-linejoin="round"/>
+          <!-- Subtle Webbing Toe Ridges -->
+          <line x1="620" y1="514" x2="642" y2="519" stroke="#ffdf8e" stroke-width="1.1" opacity="0.7"/>
+          <line x1="617" y1="517" x2="638" y2="521" stroke="#b54322" stroke-width="1" opacity="0.65"/>
+          <!-- Metallic Urban Platform Pedal -->
+          <rect x="608" y="519.5" width="30" height="7" rx="2.5" fill="#161d2e" stroke="#6f89ab" stroke-width="1.3"/>
+          <!-- Pedal Side Amber Reflector -->
+          <rect x="615" y="521.5" width="16" height="3" rx="1" fill="#ff9d2e"/>
+          <circle cx="623" cy="522" r="2.6" fill="#d9ecff"/>
+        </g>
+      </g>
+
+      <!-- Near Feathered Thigh / Drumstick (Hip 536,376 -> Exact IK Knee) -->
+      <path fill="none" stroke="#c8d4e6" stroke-width="26" stroke-linecap="round">
+        <animate attributeName="d" dur="1.4s" repeatCount="indefinite"
+          values="M 536 376 L 624.0 419.1; M 536 376 L 615.4 433.6; M 536 376 L 604.7 446.0; M 536 376 L 595.2 454.2;
+                  M 536 376 L 590.5 457.5; M 536 376 L 590.9 457.2; M 536 376 L 594.6 454.7; M 536 376 L 600.3 450.0;
+                  M 536 376 L 607.4 443.1; M 536 376 L 615.5 433.5; M 536 376 L 623.3 420.7; M 536 376 L 629.2 406.6;
+                  M 536 376 L 632.1 395.4; M 536 376 L 632.9 391.3; M 536 376 L 632.2 395.2; M 536 376 L 629.5 405.5;
+                  M 536 376 L 624.0 419.1"/>
+      </path>
+      <!-- Thigh Shadow Depth Layer -->
+      <path fill="none" stroke="#7c8ca8" stroke-width="14" stroke-linecap="round" opacity="0.55">
+        <animate attributeName="d" dur="1.4s" repeatCount="indefinite"
+          values="M 535 381 L 621.0 423.1; M 535 381 L 612.4 437.6; M 535 381 L 601.7 450.0; M 535 381 L 592.2 458.2;
+                  M 535 381 L 587.5 461.5; M 535 381 L 587.9 461.2; M 535 381 L 591.6 458.7; M 535 381 L 597.3 454.0;
+                  M 535 381 L 604.4 447.1; M 535 381 L 612.5 437.5; M 535 381 L 620.3 424.7; M 535 381 L 626.2 410.6;
+                  M 535 381 L 629.1 399.4; M 535 381 L 629.9 395.3; M 535 381 L 629.2 399.2; M 535 381 L 626.5 409.5;
+                  M 535 381 L 621.0 423.1"/>
+      </path>
+      <!-- Near Avian Lower Leg / Tarsus (Exact IK Knee -> Exact Ankle above Pedal) -->
+      <path fill="none" stroke="url(#pelicanLegNear)" stroke-width="12" stroke-linecap="round">
+        <animate attributeName="d" dur="1.4s" repeatCount="indefinite"
+          values="M 624.0 419.1 L 619.0 517.0; M 615.4 433.6 L 616.1 531.5; M 604.7 446.0 L 607.9 543.9; M 595.2 454.2 L 595.5 552.1;
+                  M 590.5 457.5 L 581.0 555.0; M 590.9 457.2 L 566.5 552.1; M 594.6 454.7 L 554.1 543.9; M 600.3 450.0 L 545.9 531.5;
+                  M 607.4 443.1 L 543.0 517.0; M 615.5 433.5 L 545.9 502.5; M 623.3 420.7 L 554.1 490.1; M 629.2 406.6 L 566.5 481.9;
+                  M 632.1 395.4 L 581.0 479.0; M 632.9 391.3 L 595.5 481.9; M 632.2 395.2 L 607.9 490.1; M 629.5 405.5 L 616.1 502.5;
+                  M 624.0 419.1 L 619.0 517.0"/>
+      </path>
+      <!-- Subtle Cyan Specular Rim Along Front of Lower Leg -->
+      <path fill="none" stroke="#9efaff" stroke-width="2" stroke-linecap="round" opacity="0.65">
+        <animate attributeName="d" dur="1.4s" repeatCount="indefinite"
+          values="M 627.5 421 L 622.5 516; M 618.9 435 L 619.6 530; M 608.2 447 L 611.4 542; M 598.7 455 L 599.0 550;
+                  M 594.0 458 L 584.5 553; M 594.4 458 L 570.0 550; M 598.1 456 L 557.6 542; M 603.8 451 L 549.4 530;
+                  M 610.9 444 L 546.5 516; M 619.0 434 L 549.4 501; M 626.8 422 L 557.6 489; M 632.7 408 L 570.0 481;
+                  M 635.6 397 L 584.5 478; M 636.4 393 L 599.0 481; M 635.7 397 L 611.4 489; M 633.0 407 L 619.6 501;
+                  M 627.5 421 L 622.5 516"/>
+      </path>
+    </g>
+
+    <!-- 10. WET TIRE SPRAY, AERODYNAMIC MOTION LINES & FOREGROUND SPEED STREAKS -->
+    <!-- Micro Water Spray Trailing Behind Spinning Tires on Wet Asphalt -->
+    <g stroke-linecap="round" opacity="0.72">
+      <!-- Rear Tire Spray -->
+      <g stroke="#7beeff" stroke-width="1.6">
+        <line x1="418" y1="601" x2="380" y2="588">
+          <animate attributeName="opacity" values="0.8;0.1;0.8" dur="0.32s" repeatCount="indefinite"/>
+        </line>
+        <line x1="406" y1="596" x2="364" y2="578">
+          <animate attributeName="opacity" values="0.15;0.85;0.15" dur="0.28s" repeatCount="indefinite"/>
+        </line>
+        <line x1="422" y1="605" x2="372" y2="602" stroke="#ff6eb8">
+          <animate attributeName="opacity" values="0.7;0.1;0.7" dur="0.25s" repeatCount="indefinite"/>
+        </line>
+      </g>
+      <!-- Front Tire Spray -->
+      <g stroke="#8cf4ff" stroke-width="1.5">
+        <line x1="748" y1="601" x2="714" y2="589">
+          <animate attributeName="opacity" values="0.2;0.8;0.2" dur="0.3s" repeatCount="indefinite"/>
+        </line>
+        <line x1="752" y1="605" x2="704" y2="601">
+          <animate attributeName="opacity" values="0.75;0.15;0.75" dur="0.26s" repeatCount="indefinite"/>
+        </line>
+      </g>
+    </g>
+
+    <!-- Aerodynamic Slipstream Motion Lines Trailing Pelican & Bike -->
+    <g fill="none" stroke-linecap="round">
+      <line x1="472" y1="176" x2="546" y2="176" stroke="url(#streakWhite)" stroke-width="1.8">
+        <animate attributeName="opacity" values="0.2;0.8;0.2" dur="0.65s" repeatCount="indefinite"/>
+      </line>
+      <line x1="340" y1="312" x2="464" y2="312" stroke="url(#streakMagenta)" stroke-width="2.2">
+        <animate attributeName="opacity" values="0.75;0.2;0.75" dur="0.55s" repeatCount="indefinite"/>
+      </line>
+      <line x1="255" y1="364" x2="412" y2="364" stroke="url(#streakCyan)" stroke-width="2">
+        <animate attributeName="opacity" values="0.25;0.85;0.25" dur="0.48s" repeatCount="indefinite"/>
+      </line>
+      <line x1="220" y1="496" x2="346" y2="496" stroke="url(#streakMagenta)" stroke-width="2.4">
+        <animate attributeName="opacity" values="0.8;0.15;0.8" dur="0.42s" repeatCount="indefinite"/>
+      </line>
+      <line x1="170" y1="598" x2="352" y2="598" stroke="url(#streakCyan)" stroke-width="2.2">
+        <animate attributeName="opacity" values="0.3;0.85;0.3" dur="0.38s" repeatCount="indefinite"/>
+      </line>
+    </g>
+
+    <!-- Fast Foreground Neon Speed Streaks Sweeping Across Viewport -->
+    <g opacity="0.85">
+      <rect x="0" y="128" width="240" height="1.8" fill="url(#streakMagenta)">
+        <animateTransform attributeName="transform" type="translate" from="1260 0" to="-280 0" dur="0.54s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="0" y="544" width="340" height="2.6" fill="url(#streakCyan)">
+        <animateTransform attributeName="transform" type="translate" from="1320 0" to="-380 0" dur="0.42s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="0" y="654" width="380" height="3" fill="url(#streakMagenta)">
+        <animateTransform attributeName="transform" type="translate" from="1440 0" to="-420 0" dur="0.36s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="0" y="690" width="260" height="2.2" fill="url(#streakWhite)">
+        <animateTransform attributeName="transform" type="translate" from="1280 0" to="-300 0" dur="0.46s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <!-- Subtle Cinematic Night Vignette -->
+    <rect x="0" y="0" width="1200" height="720" fill="none" stroke="#040510" stroke-width="24" opacity="0.45"/>
+  </g>
+</svg>
